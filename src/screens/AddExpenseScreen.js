@@ -1,124 +1,244 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Switch, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db, auth } from '../config/firebase';
+import { auth, db } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { getAddExpenseStyles } from '../styles/addExpenseStyles';
 
-const CATEGORIES = ['Food Delivery', 'Shopping', 'Subscriptions', 'Transport', 'Utilities', 'Entertainment', 'Other'];
+const EXPENSE_CATEGORIES = [
+  'Food & Dining',
+  'Shopping',
+  'Entertainment',
+  'Transport',
+  'Subscriptions',
+  'Groceries',
+  'Other',
+];
+
+const FIXED_BILL_CATEGORIES = [
+  'Credit Card Bill',
+  'Loan EMI',
+  'House Rent',
+  'Utilities',
+  'Insurance',
+  'Other Bill',
+];
 
 export default function AddExpenseScreen({ navigation }) {
   const { theme, colors } = useTheme();
   const styles = getAddExpenseStyles(theme);
 
+  // Toggle state: 'expense' vs 'bill'
+  const [entryType, setEntryType] = useState('expense');
+
+  // Common Fields
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('Food Delivery');
-  const [isLeak, setIsLeak] = useState(false);
+  const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
+  const [notes, setNotes] = useState('');
+
+  // Fixed Bill specific field
+  const [dueDate, setDueDate] = useState(
+    new Date().toISOString().split('T')[0]
+  );
+
   const [loading, setLoading] = useState(false);
 
-  const handleAddExpense = async () => {
+  const handleEntryTypeChange = (type) => {
+    setEntryType(type);
+    setCategory(type === 'expense' ? EXPENSE_CATEGORIES[0] : FIXED_BILL_CATEGORIES[0]);
+  };
+
+  const handleSave = async () => {
     if (!title.trim() || !amount.trim()) {
-      Alert.alert('Missing Fields', 'Please fill in both title and amount.');
+      Alert.alert('Validation Error', 'Please fill in Title and Amount.');
       return;
     }
 
-    const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid numeric spend amount.');
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert('Validation Error', 'Please enter a valid positive amount.');
+      return;
+    }
+
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      Alert.alert('Error', 'User unauthenticated.');
       return;
     }
 
     setLoading(true);
-    try {
-      await addDoc(collection(db, 'expenses'), {
-        userId: auth.currentUser?.uid,
-        title: title.trim(),
-        amount: numericAmount,
-        category,
-        isLeak,
-        createdAt: serverTimestamp(),
-        date: new Date().toISOString().split('T')[0], // YYYY-MM-DD
-      });
 
-      Alert.alert('Success', 'Expense logged successfully!');
+    try {
+      if (entryType === 'expense') {
+        await addDoc(collection(db, 'expenses'), {
+          userId,
+          title: title.trim(),
+          amount: parsedAmount,
+          category,
+          notes: notes.trim(),
+          createdAt: serverTimestamp(),
+        });
+        Alert.alert('Success', 'Expense recorded successfully!');
+      } else {
+        await addDoc(collection(db, 'mandatory_expenses'), {
+          userId,
+          title: title.trim(),
+          amount: parsedAmount,
+          category,
+          dueDate: dueDate.trim(),
+          isPaid: false,
+          notes: notes.trim(),
+          createdAt: serverTimestamp(),
+        });
+        Alert.alert('Success', 'Fixed Liability / Bill added successfully!');
+      }
+
+      // Reset form
       setTitle('');
       setAmount('');
-      setIsLeak(false);
-      
-      if (navigation) navigation.goBack();
+      setNotes('');
+      navigation.navigate('Dashboard');
     } catch (error) {
-      Alert.alert('Firestore Error', error.message);
+      Alert.alert('Error', 'Failed to save record: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
+  const currentCategories = entryType === 'expense' ? EXPENSE_CATEGORIES : FIXED_BILL_CATEGORIES;
+
   return (
-    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
-      <Text style={styles.headerTitle}>Add Expense</Text>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+      <Text style={styles.headerTitle}>Add New Record</Text>
 
-      <Text style={styles.label}>Title / Merchant</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g., Zomato, Amazon, Uber"
-        placeholderTextColor={colors.textSecondary}
-        value={title}
-        onChangeText={setTitle}
-      />
+      {/* Entry Type Selector */}
+      <View style={{ flexDirection: 'row', marginBottom: 20, backgroundColor: colors.cardBackground, borderRadius: 10, padding: 4 }}>
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            paddingVertical: 10,
+            alignItems: 'center',
+            borderRadius: 8,
+            backgroundColor: entryType === 'expense' ? colors.accent : 'transparent',
+          }}
+          onPress={() => handleEntryTypeChange('expense')}
+        >
+          <Text style={{ color: entryType === 'expense' ? '#FFFFFF' : colors.textSecondary, fontWeight: 'bold' }}>
+            Daily Expense
+          </Text>
+        </TouchableOpacity>
 
-      <Text style={styles.label}>Amount (₹)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="0.00"
-        placeholderTextColor={colors.textSecondary}
-        keyboardType="decimal-pad"
-        value={amount}
-        onChangeText={setAmount}
-      />
+        <TouchableOpacity
+          style={{
+            flex: 1,
+            paddingVertical: 10,
+            alignItems: 'center',
+            borderRadius: 8,
+            backgroundColor: entryType === 'bill' ? colors.accent : 'transparent',
+          }}
+          onPress={() => handleEntryTypeChange('bill')}
+        >
+          <Text style={{ color: entryType === 'bill' ? '#FFFFFF' : colors.textSecondary, fontWeight: 'bold' }}>
+            Fixed Bill / Debt
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-      <Text style={styles.label}>Category</Text>
-      <View style={styles.categoryContainer}>
-        {CATEGORIES.map((cat) => {
-          const isSelected = category === cat;
-          return (
+      {/* Input Fields */}
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>Title</Text>
+        <TextInput
+          style={styles.input}
+          placeholder={entryType === 'expense' ? 'e.g., Starbucks Coffee' : 'e.g., HDFC Credit Card Bill'}
+          placeholderTextColor={colors.textSecondary}
+          value={title}
+          onChangeText={setTitle}
+        />
+      </View>
+
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>Amount (₹)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="0.00"
+          placeholderTextColor={colors.textSecondary}
+          keyboardType="decimal-pad"
+          value={amount}
+          onChangeText={setAmount}
+        />
+      </View>
+
+      {entryType === 'bill' && (
+        <View style={styles.formGroup}>
+          <Text style={styles.label}>Due Date (YYYY-MM-DD)</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={colors.textSecondary}
+            value={dueDate}
+            onChangeText={setDueDate}
+          />
+        </View>
+      )}
+
+      {/* Category Pills */}
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>Category</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', marginVertical: 8 }}>
+          {currentCategories.map((cat) => (
             <TouchableOpacity
               key={cat}
-              style={[styles.categoryChip, isSelected && styles.selectedCategoryChip]}
               onPress={() => setCategory(cat)}
+              style={[
+                styles.categoryChip,
+                category === cat && styles.categoryChipActive,
+              ]}
             >
-              <Text style={[styles.categoryChipText, isSelected && styles.selectedCategoryChipText]}>
+              <Text
+                style={[
+                  styles.categoryChipText,
+                  category === cat && styles.categoryChipTextActive,
+                ]}
+              >
                 {cat}
               </Text>
             </TouchableOpacity>
-          );
-        })}
+          ))}
+        </ScrollView>
       </View>
 
-      <View style={styles.switchContainer}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.switchLabel}>Flag as Financial Leak?</Text>
-          <Text style={styles.switchSublabel}>
-            Mark impulse buys, food delivery, or unnecessary micro-transfers.
-          </Text>
-        </View>
-        <Switch
-          value={isLeak}
-          onValueChange={setIsLeak}
-          trackColor={{ false: colors.border, true: colors.danger }}
-          thumbColor="#FFFFFF"
+      <View style={styles.formGroup}>
+        <Text style={styles.label}>Notes (Optional)</Text>
+        <TextInput
+          style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+          placeholder="Additional notes..."
+          placeholderTextColor={colors.textSecondary}
+          multiline
+          value={notes}
+          onChangeText={setNotes}
         />
       </View>
 
       <TouchableOpacity
         style={styles.submitButton}
-        onPress={handleAddExpense}
+        onPress={handleSave}
         disabled={loading}
       >
         {loading ? (
           <ActivityIndicator color="#FFFFFF" />
         ) : (
-          <Text style={styles.submitButtonText}>Save Expense</Text>
+          <Text style={styles.submitButtonText}>
+            {entryType === 'expense' ? 'Save Expense' : 'Save Fixed Liability'}
+          </Text>
         )}
       </TouchableOpacity>
     </ScrollView>
