@@ -6,8 +6,14 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#121218"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.spendlens.expensetracker"
     },
     "android": {
       "package": "com.spendlens.expensetracker",
@@ -22,7 +28,15 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-sharing"
-    ]
+      "expo-sharing",
+      "@react-native-community/datetimepicker",
+      "expo-notifications",
+      "expo-splash-screen"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "dada7288-10c5-43bb-ac22-f806185633e1"
+      }
+    }
   }
 }

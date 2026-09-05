@@ -2,12 +2,23 @@
 
 # dependencies
 node_modules/
+.pnpm-store/
 
-# Expo
+# Expo & EAS
 .expo/
 dist/
 web-build/
 expo-env.d.ts
+*.app
+*.ipa
+*.apk
+*.aab
+
+# Firebase & Local Secrets (CRITICAL)
+.env
+.env*.local
+google-services.json
+GoogleService-Info.plist
 
 # Native
 .kotlin/
@@ -16,6 +27,7 @@ expo-env.d.ts
 *.p8
 *.p12
 *.key
+*.keystore
 *.mobileprovision
 
 # Metro
@@ -25,13 +37,17 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
 
-# macOS
+# System & IDEs
 .DS_Store
+Thumbs.db
 *.pem
-
-# local env files
-.env*.local
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
 
 # typescript
 *.tsbuildinfo
@@ -39,7 +55,3 @@ yarn-error.*
 # generated native folders
 /ios
 /android
-
-# Local environment variables
-.env
-.env*.local

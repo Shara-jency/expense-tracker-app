@@ -11,11 +11,18 @@ import {
   Image,
   Platform,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import { colors, borderRadius, spacing } from '../styles/theme';
+
+// Safe conditional import so missing package does not throw a fatal crash
+let DateTimePicker;
+try {
+  DateTimePicker = require('@react-native-community/datetimepicker').default;
+} catch (e) {
+  DateTimePicker = null;
+}
 
 const CATEGORIES = ['Food & Dining', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'Other'];
 
@@ -107,6 +114,17 @@ export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
     }
   };
 
+  const handleDatePickerPress = () => {
+    if (!DateTimePicker) {
+      Alert.alert(
+        'Date Picker Unavailable',
+        'Optional date selector requires @react-native-community/datetimepicker. Today\'s date will be used by default.'
+      );
+      return;
+    }
+    setShowDatePicker(true);
+  };
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <View style={styles.overlay}>
@@ -161,7 +179,7 @@ export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
           <View style={styles.row}>
             <TouchableOpacity
               style={[styles.secondaryButton, { borderColor: currentColors.border }]}
-              onPress={() => setShowDatePicker(true)}
+              onPress={handleDatePickerPress}
             >
               <Text style={{ color: currentColors.textPrimary }}>
                 📅 {expenseDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -189,8 +207,8 @@ export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
             </View>
           )}
 
-          {/* Date Picker Modal/Component */}
-          {showDatePicker && (
+          {/* Date Picker Component */}
+          {showDatePicker && DateTimePicker && (
             <DateTimePicker
               value={expenseDate}
               mode="date"
@@ -220,7 +238,7 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
-    justify: 'flex-end',
+    justifyContent: 'flex-end',
   },
   container: {
     borderTopLeftRadius: borderRadius.lg,
