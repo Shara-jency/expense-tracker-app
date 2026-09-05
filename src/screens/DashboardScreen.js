@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   TextInput,
   Alert,
+  Image,
   StyleSheet,
 } from 'react-native';
 import {
@@ -26,7 +27,11 @@ import MandatoryCard from '../components/MandatoryCard';
 import EditExpenseModal from '../components/EditExpenseModal';
 import GlobalFAB from '../components/GlobalFAB';
 import { exportExpensesToCSV } from '../services/exportService';
-import { requestNotificationPermissions, scheduleBillReminder } from '../services/notificationService';
+import {
+  requestNotificationPermissions,
+  scheduleBillReminder,
+  scheduleWeeklyLoggingReminder,
+} from '../services/notificationService';
 
 const CATEGORIES = ['All', 'Food & Dining', 'Shopping', 'Entertainment', 'Transport', 'Groceries', 'Bills'];
 
@@ -50,8 +55,12 @@ export default function DashboardScreen({ navigation }) {
   useEffect(() => {
     if (!user) return;
 
-    // Request notification access on app load
-    requestNotificationPermissions();
+    // Request notification access & schedule weekly expense logging check-in (Saturdays at 9 AM)
+    requestNotificationPermissions().then((granted) => {
+      if (granted) {
+        scheduleWeeklyLoggingReminder(7, 9, 0); // Day 7 = Saturday, 9:00 AM
+      }
+    });
 
     // 1. Listen for regular expenses
     const expensesQuery = query(
@@ -138,6 +147,12 @@ export default function DashboardScreen({ navigation }) {
   const totalMandatory = bills
     .filter((b) => !b.isPaid)
     .reduce((sum, item) => sum + (item.amount || 0), 0);
+
+  const formatDate = (rawDate) => {
+    if (!rawDate) return '';
+    const dateObj = rawDate.toDate ? rawDate.toDate() : new Date(rawDate);
+    return dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  };
 
   if (loading) {
     return (
@@ -240,8 +255,15 @@ export default function DashboardScreen({ navigation }) {
           filteredExpenses.map((item) => (
             <View key={item.id} style={styles.expenseItem}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.expenseTitle}>{item.title}</Text>
-                <Text style={styles.expenseCategory}>{item.category || 'Other'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.expenseTitle}>{item.title}</Text>
+                  {item.receiptUri && (
+                    <Image source={{ uri: item.receiptUri }} style={localStyles.receiptThumb} />
+                  )}
+                </View>
+                <Text style={styles.expenseCategory}>
+                  {item.category || 'Other'} • {formatDate(item.expenseDate || item.createdAt)}
+                </Text>
               </View>
 
               <Text style={styles.expenseAmount}>-₹{(item.amount || 0).toFixed(2)}</Text>
@@ -299,5 +321,10 @@ const localStyles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     marginRight: 8,
+  },
+  receiptThumb: {
+    width: 18,
+    height: 18,
+    borderRadius: 3,
   },
 });

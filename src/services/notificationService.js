@@ -78,3 +78,58 @@ export const scheduleBillReminder = async (billTitle, amount, dueDateDay) => {
     console.error('Failed to schedule notification:', error);
   }
 };
+
+/**
+ * Schedules or updates a recurring weekly reminder on weekend mornings.
+ * @param {number} weekday - Expo weekday index: 1 for Sunday, 7 for Saturday (default: 7)
+ * @param {number} hour - Hour of the day in 24h format (e.g., 9 for 9:00 AM)
+ * @param {number} minute - Minute of the hour (default: 0)
+ */
+export const scheduleWeeklyLoggingReminder = async (weekday = 7, hour = 9, minute = 0) => {
+  const hasPermission = await requestNotificationPermissions();
+  if (!hasPermission) return;
+
+  try {
+    // Cancel existing weekly log reminders to avoid duplication when preferences change
+    const scheduled = await Notifications.getAllScheduledNotificationAsync();
+    for (const item of scheduled) {
+      if (item.content.data?.type === 'WEEKLY_LOG_REMINDER') {
+        await Notifications.cancelScheduledNotificationAsync(item.identifier);
+      }
+    }
+
+    const dayName = weekday === 1 ? 'Sunday' : 'Saturday';
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '📊 Weekend Financial Check-in',
+        body: `Did you miss logging any expenses this week? Tap here to quickly update your logs before starting your ${dayName}!`,
+        data: { type: 'WEEKLY_LOG_REMINDER' },
+      },
+      trigger: {
+        weekday: weekday, // 1 = Sunday, 7 = Saturday
+        hour: hour,       // e.g., 9 AM
+        minute: minute,
+        repeats: true,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to schedule weekly reminder:', error);
+  }
+};
+
+/**
+ * Cancels all scheduled weekly expense logging reminders.
+ */
+export const cancelWeeklyLoggingReminder = async () => {
+  try {
+    const scheduled = await Notifications.getAllScheduledNotificationAsync();
+    for (const item of scheduled) {
+      if (item.content.data?.type === 'WEEKLY_LOG_REMINDER') {
+        await Notifications.cancelScheduledNotificationAsync(item.identifier);
+      }
+    }
+  } catch (error) {
+    console.error('Failed to cancel weekly reminder:', error);
+  }
+};

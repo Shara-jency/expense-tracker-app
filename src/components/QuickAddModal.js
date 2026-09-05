@@ -1,8 +1,23 @@
 import React, { useState } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import {
+  Modal,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  Image,
+  Platform,
+} from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import { colors, borderRadius, spacing } from '../styles/theme';
+
+const CATEGORIES = ['Food & Dining', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'Other'];
 
 export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
   const currentColors = colors[theme] || colors.dark;
@@ -10,11 +25,51 @@ export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('Food & Dining');
+  const [expenseDate, setExpenseDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [receiptUri, setReceiptUri] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const resetForm = () => {
+    setTitle('');
+    setAmount('');
+    setCategory('Food & Dining');
+    setExpenseDate(new Date());
+    setReceiptUri(null);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Permission to access media library is required.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.7,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setReceiptUri(result.assets[0].uri);
+    }
+  };
 
   const handleAddExpense = async () => {
     if (!title.trim() || !amount.trim()) {
       Alert.alert('Validation Error', 'Please fill in both title and amount.');
+      return;
+    }
+
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert('Validation Error', 'Please enter a valid amount.');
       return;
     }
 
@@ -30,16 +85,14 @@ export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
       await addDoc(collection(db, 'expenses'), {
         userId: user.uid,
         title: title.trim(),
-        amount: parseFloat(amount),
+        amount: parsedAmount,
         category: category,
+        expenseDate: expenseDate.toISOString(),
+        receiptUri: receiptUri || null,
         createdAt: serverTimestamp(),
       });
 
-      // Reset form & close modal
-      setTitle('');
-      setAmount('');
-      setCategory('Food & Dining');
-      onClose();
+      handleClose();
     } catch (error) {
       Alert.alert('Error', error.message || 'Could not save expense.');
     } finally {
@@ -47,12 +100,20 @@ export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
     }
   };
 
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      setExpenseDate(selectedDate);
+    }
+  };
+
   return (
-    <Modal visible={visible} transparent animationType="slide">
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={[styles.container, { backgroundColor: currentColors.cardBackground }]}>
           <Text style={[styles.title, { color: currentColors.textPrimary }]}>⚡ Quick Expense Entry</Text>
 
+          {/* Title Input */}
           <TextInput
             style={[styles.input, { color: currentColors.textPrimary, borderColor: currentColors.border }]}
             placeholder="Expense title (e.g., Coffee, Uber)"
@@ -61,6 +122,7 @@ export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
             onChangeText={setTitle}
           />
 
+          {/* Amount Input */}
           <TextInput
             style={[styles.input, { color: currentColors.textPrimary, borderColor: currentColors.border }]}
             placeholder="Amount (₹)"
@@ -70,8 +132,77 @@ export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
             onChangeText={setAmount}
           />
 
+          {/* Category Chips */}
+          <Text style={[styles.label, { color: currentColors.textSecondary }]}>Category</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryContainer}>
+            {CATEGORIES.map((cat) => {
+              const isSelected = category === cat;
+              return (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: isSelected ? '#3B82F6' : 'transparent',
+                      borderColor: isSelected ? '#3B82F6' : currentColors.border,
+                    },
+                  ]}
+                  onPress={() => setCategory(cat)}
+                >
+                  <Text style={[styles.chipText, { color: isSelected ? '#FFF' : currentColors.textPrimary }]}>
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          {/* Date Selector */}
+          <View style={styles.row}>
+            <TouchableOpacity
+              style={[styles.secondaryButton, { borderColor: currentColors.border }]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Text style={{ color: currentColors.textPrimary }}>
+                📅 {expenseDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+              </Text>
+            </TouchableOpacity>
+
+            {/* Receipt Image Button */}
+            <TouchableOpacity
+              style={[styles.secondaryButton, { borderColor: currentColors.border }]}
+              onPress={handlePickImage}
+            >
+              <Text style={{ color: currentColors.textPrimary }}>
+                {receiptUri ? '🖼️ Receipt Added' : '📷 Attach Receipt'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Receipt Preview */}
+          {receiptUri && (
+            <View style={styles.previewContainer}>
+              <Image source={{ uri: receiptUri }} style={styles.receiptPreview} />
+              <TouchableOpacity onPress={() => setReceiptUri(null)}>
+                <Text style={styles.removeReceiptText}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Date Picker Modal/Component */}
+          {showDatePicker && (
+            <DateTimePicker
+              value={expenseDate}
+              mode="date"
+              display="default"
+              onChange={handleDateChange}
+              maximumDate={new Date()}
+            />
+          )}
+
+          {/* Action Buttons */}
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+            <TouchableOpacity style={styles.cancelButton} onPress={handleClose}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
 
@@ -89,7 +220,7 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'flex-end',
+    justify: 'flex-end',
   },
   container: {
     borderTopLeftRadius: borderRadius.lg,
@@ -101,6 +232,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: spacing.md,
   },
+  label: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
   input: {
     borderWidth: 1,
     borderRadius: borderRadius.sm,
@@ -108,11 +245,54 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     fontSize: 15,
   },
+  categoryContainer: {
+    flexDirection: 'row',
+    marginBottom: spacing.md,
+  },
+  chip: {
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    marginRight: spacing.xs,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  row: {
+    flexDirection: 'row',
+    justify: 'space-between',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  secondaryButton: {
+    flex: 1,
+    borderWidth: 1,
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+    alignItems: 'center',
+  },
+  previewContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  receiptPreview: {
+    width: 40,
+    height: 40,
+    borderRadius: borderRadius.xs,
+  },
+  removeReceiptText: {
+    color: '#EF4444',
+    fontSize: 12,
+  },
   buttonRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justify: 'flex-end',
     gap: 12,
-    marginTop: spacing.sm,
+    marginTop: spacing.xs,
   },
   cancelButton: {
     padding: spacing.sm,
