@@ -10,8 +10,9 @@ export default function ProfileScreen() {
   const styles = getProfileStyles(theme);
 
   const currentUser = auth.currentUser;
-  const userEmail = currentUser?.email || 'User';
-  const initial = userEmail.charAt(0).toUpperCase();
+  const displayName = currentUser?.displayName || 'User';
+  const userEmail = currentUser?.email || '';
+  const initial = displayName.charAt(0).toUpperCase();
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to log out?', [
@@ -33,7 +34,12 @@ export default function ProfileScreen() {
         <View style={styles.avatarPlaceholder}>
           <Text style={styles.avatarText}>{initial}</Text>
         </View>
-        <Text style={styles.emailText}>{userEmail}</Text>
+        <Text style={styles.emailText}>{displayName}</Text>
+        {userEmail ? (
+          <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>
+            {userEmail}
+          </Text>
+        ) : null}
       </View>
 
       {/* Dark/Light Mode Switcher */}

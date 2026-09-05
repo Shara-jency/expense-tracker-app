@@ -1,25 +1,23 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
-import { getGlobalStyles } from '../styles/globalStyles';
 import { getAuthStyles } from '../styles/authStyles';
-
-
 
 export default function AuthScreen() {
   const { theme, colors } = useTheme();
-const styles = getAuthStyles(theme);
+  const styles = getAuthStyles(theme);
   
   const [isLogin, setIsLogin] = useState(true);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleAuth = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password.');
+    if (!email || !password || (!isLogin && !name.trim())) {
+      Alert.alert('Missing Fields', 'Please fill in all fields.');
       return;
     }
 
@@ -28,7 +26,11 @@ const styles = getAuthStyles(theme);
       if (isLogin) {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
-        await createUserWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        // Save the user's name directly to their Firebase profile
+        await updateProfile(userCredential.user, {
+          displayName: name.trim(),
+        });
       }
     } catch (error) {
       Alert.alert('Authentication Error', error.message);
@@ -47,6 +49,17 @@ const styles = getAuthStyles(theme);
       </View>
 
       <View style={styles.authFormContainer}>
+        {!isLogin && (
+          <TextInput
+            style={styles.authInput}
+            placeholder="Full Name"
+            placeholderTextColor={colors.textSecondary}
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+          />
+        )}
+
         <TextInput
           style={styles.authInput}
           placeholder="Email address"

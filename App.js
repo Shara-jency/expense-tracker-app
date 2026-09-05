@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView, StatusBar, View, ActivityIndicator } from 'react-native';
+import { StatusBar, View, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +17,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 const Tab = createBottomTabNavigator();
 
 function AppTabs() {
-  const { theme, colors } = useTheme();
+  const { colors } = useTheme();
 
   return (
     <Tab.Navigator
@@ -24,7 +25,6 @@ function AppTabs() {
         headerShown: false,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
-
           if (route.name === 'Dashboard') {
             iconName = focused ? 'wallet' : 'wallet-outline';
           } else if (route.name === 'Add Expense') {
@@ -34,7 +34,6 @@ function AppTabs() {
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
-
           return <Ionicons name={iconName} size={22} color={color} />;
         },
         tabBarStyle: {
@@ -98,8 +97,10 @@ function MainApp() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <MainApp />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <MainApp />
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
