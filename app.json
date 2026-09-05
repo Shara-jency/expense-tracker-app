@@ -11,6 +11,12 @@
       "resizeMode": "contain",
       "backgroundColor": "#121218"
     },
+    "notification": {
+      "icon": "./assets/android-icon-monochrome.png",
+      "color": "#3B82F6",
+      "androidMode": "default",
+      "androidCollapsedTitle": "SpendLens Updates"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.spendlens.expensetracker"
