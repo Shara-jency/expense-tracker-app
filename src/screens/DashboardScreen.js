@@ -20,6 +20,7 @@ import { auth, db } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { getDashboardStyles } from '../styles/dashboardStyles';
 import MandatoryCard from '../components/MandatoryCard';
+import { deleteDoc, doc } from 'firebase/firestore';
 
 export default function DashboardScreen({ navigation }) {
   const { theme, colors } = useTheme();
@@ -79,6 +80,30 @@ export default function DashboardScreen({ navigation }) {
     } catch (e) {
       console.error('Error toggling status:', e);
     }
+  };
+
+  import { deleteDoc, doc } from 'firebase/firestore';
+
+  // Add inside DashboardScreen:
+  const handleDeleteExpense = (id, title) => {
+    Alert.alert(
+      'Delete Record',
+      `Are you sure you want to delete "${title}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, 'expenses', id));
+            } catch (e) {
+              Alert.alert('Error', 'Could not delete item: ' + e.message);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const totalSpent = expenses.reduce((sum, item) => sum + (item.amount || 0), 0);
