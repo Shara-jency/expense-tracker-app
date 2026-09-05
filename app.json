@@ -6,21 +6,12 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#121218"
-    },
-    "notification": {
-      "icon": "./assets/android-icon-monochrome.png",
-      "color": "#3B82F6",
-      "androidMode": "default",
-      "androidCollapsedTitle": "SpendLens Updates"
-    },
+
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.spendlens.expensetracker"
     },
+
     "android": {
       "package": "com.spendlens.expensetracker",
       "adaptiveIcon": {
@@ -30,15 +21,36 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       }
     },
+
     "web": {
       "favicon": "./assets/favicon.png"
     },
+
     "plugins": [
       "expo-sharing",
       "@react-native-community/datetimepicker",
-      "expo-notifications",
-      "expo-splash-screen"
+
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#3B82F6",
+          "defaultChannel": "default"
+        }
+      ],
+
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#121218"
+        }
+      ],
+
+      "expo-font"
     ],
+
     "extra": {
       "eas": {
         "projectId": "dada7288-10c5-43bb-ac22-f806185633e1"
