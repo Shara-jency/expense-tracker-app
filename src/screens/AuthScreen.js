@@ -4,10 +4,13 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'fire
 import { auth } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { getGlobalStyles } from '../styles/globalStyles';
+import { getAuthStyles } from '../styles/authStyles';
+
+
 
 export default function AuthScreen() {
   const { theme, colors } = useTheme();
-  const styles = getGlobalStyles(theme);
+const styles = getAuthStyles(theme);
   
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
