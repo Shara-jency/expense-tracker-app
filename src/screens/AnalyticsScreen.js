@@ -1,96 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Dimensions, ActivityIndicator } from 'react-native';
-import { PieChart } from 'react-native-chart-kit';
+import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { getAnalyticsStyles } from '../styles/analyticsStyles';
 import BudgetProgressBar from '../components/BudgetProgressBar';
+import LeakCard from '../components/LeakCard';
+import { detectFinancialLeaks } from '../services/leakDetector';
 
-const screenWidth = Dimensions.get('window').width - 32;
-
-// Default category budget thresholds (can be made user-configurable)
-const DEFAULT_BUDGETS = {
-  'Food & Dining': 8000,
-  'Shopping': 6000,
-  'Entertainment': 4000,
-  'Transport': 3000,
-  'Subscriptions': 2000,
-  'Groceries': 10000,
+// Default budget limits per month in INR
+const BUDGET_CAPS = {
+  'Food & Dining': 6000,
+  'Shopping': 5000,
+  'Entertainment': 3000,
+  'Transport': 2500,
+  'Groceries': 8000,
 };
 
 export default function AnalyticsScreen() {
   const { theme, colors } = useTheme();
   const styles = getAnalyticsStyles(theme);
 
-  const [loading, setLoading] = useState(true);
-  const [totalFixed, setTotalFixed] = useState(0);
-  const [totalDiscretionary, setTotalDiscretionary] = useState(0);
+  const [expenses, setExpenses] = useState([]);
   const [categorySpends, setCategorySpends] = useState({});
+  const [leaks, setLeaks] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
 
-    // 1. Fetch Discretionary Expenses
-    const qExpenses = query(collection(db, 'expenses'), where('userId', '==', user.uid));
-    const unsubscribeExp = onSnapshot(qExpenses, (snapshot) => {
-      let discTotal = 0;
+    const q = query(
+      collection(db, 'expenses'),
+      where('userId', '==', user.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const expList = snapshot.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+
+      // Calculate totals per category
       const catMap = {};
-
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const amt = data.amount || 0;
-        const cat = data.category || 'Other';
-
-        discTotal += amt;
-        catMap[cat] = (catMap[cat] || 0) + amt;
+      expList.forEach((item) => {
+        const cat = item.category || 'Other';
+        catMap[cat] = (catMap[cat] || 0) + (Number(item.amount) || 0);
       });
 
-      setTotalDiscretionary(discTotal);
+      setExpenses(expList);
       setCategorySpends(catMap);
+
+      // Run Leak Detector
+      const detectedLeaks = detectFinancialLeaks(expList);
+      setLeaks(detectedLeaks);
+
       setLoading(false);
     });
 
-    // 2. Fetch Fixed Bills & Obligations
-    const qBills = query(collection(db, 'mandatory_expenses'), where('userId', '==', user.uid));
-    const unsubscribeBills = onSnapshot(qBills, (snapshot) => {
-      let fixedSum = 0;
-      snapshot.forEach((doc) => {
-        fixedSum += doc.data().amount || 0;
-      });
-      setTotalFixed(fixedSum);
-    });
-
-    return () => {
-      unsubscribeExp();
-      unsubscribeBills();
-    };
+    return () => unsubscribe();
   }, []);
-
-  const pieData = [
-    {
-      name: 'Fixed Bills',
-      population: totalFixed,
-      color: '#EF4444',
-      legendFontColor: colors.textPrimary,
-      legendFontSize: 12,
-    },
-    {
-      name: 'Discretionary',
-      population: totalDiscretionary,
-      color: '#3B82F6',
-      legendFontColor: colors.textPrimary,
-      legendFontSize: 12,
-    },
-  ];
-
-  const chartConfig = {
-    backgroundGradientFrom: colors.cardBackground,
-    backgroundGradientTo: colors.cardBackground,
-    color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-    labelColor: () => colors.textSecondary,
-  };
 
   if (loading) {
     return (
@@ -101,38 +70,33 @@ export default function AnalyticsScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
-      <Text style={styles.headerTitle}>Analytics & Budget Lens</Text>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+      <Text style={styles.headerTitle}>Phase 1: Leak Lens & Alerts</Text>
 
-      {/* Fixed vs Discretionary Chart */}
-      <Text style={styles.sectionTitle}>Fixed Commitments vs. Flexible Spend</Text>
-      <View style={styles.chartCard}>
-        {totalFixed > 0 || totalDiscretionary > 0 ? (
-          <PieChart
-            data={pieData}
-            width={screenWidth}
-            height={200}
-            chartConfig={chartConfig}
-            accessor="population"
-            backgroundColor="transparent"
-            paddingLeft="15"
-            absolute
-          />
-        ) : (
-          <Text style={styles.emptyText}>Log expenses or bills to see cash-flow distribution.</Text>
-        )}
-      </View>
+      {/* 1. Leak Detector Section */}
+      <Text style={styles.sectionTitle}>Detected Leaks & Habit Drains</Text>
+      {leaks.length === 0 ? (
+        <View style={styles.chartCard}>
+          <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
+            🎉 Great discipline! No recurring spending leaks detected in the last 30 days.
+          </Text>
+        </View>
+      ) : (
+        leaks.map((leak, idx) => (
+          <LeakCard key={idx} leak={leak} theme={theme} />
+        ))
+      )}
 
-      {/* Budget Limit Progress Bars */}
-      <Text style={styles.sectionTitle}>Category Budget Limits</Text>
-      {Object.keys(DEFAULT_BUDGETS).map((cat) => {
-        const spent = categorySpends[cat] || 0;
-        const limit = DEFAULT_BUDGETS[cat];
+      {/* 2. Category Budget Progress Bars */}
+      <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Monthly Category Caps</Text>
+      {Object.keys(BUDGET_CAPS).map((category) => {
+        const spent = categorySpends[category] || 0;
+        const limit = BUDGET_CAPS[category];
 
         return (
           <BudgetProgressBar
-            key={cat}
-            category={cat}
+            key={category}
+            category={category}
             spent={spent}
             limit={limit}
             theme={theme}
