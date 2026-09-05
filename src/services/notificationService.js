@@ -21,10 +21,9 @@ try {
 }
 
 /**
- * Requests notification permissions from the operating system.
+ * Requests notification permissions from the operating system and registers default channel.
  */
 export const requestNotificationPermissions = async () => {
-  // Gracefully bypass in Expo Go on Android
   if (isAndroidExpoGo) {
     console.warn('Notifications disabled in Expo Go on Android. Use a Development Build for native push testing.');
     return false;
@@ -50,6 +49,7 @@ export const requestNotificationPermissions = async () => {
         importance: Notifications.AndroidImportance.HIGH,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#3B82F6',
+        sound: 'default',
       });
     }
 
@@ -62,9 +62,6 @@ export const requestNotificationPermissions = async () => {
 
 /**
  * Schedules a local push notification for an upcoming mandatory bill.
- * @param {string} billTitle - Name of the bill
- * @param {number} amount - Amount in INR
- * @param {number} dueDateDay - Day of the month the bill is due (1-31)
  */
 export const scheduleBillReminder = async (billTitle, amount, dueDateDay) => {
   if (isAndroidExpoGo) return;
@@ -75,12 +72,10 @@ export const scheduleBillReminder = async (billTitle, amount, dueDateDay) => {
   const now = new Date();
   let scheduledDate = new Date(now.getFullYear(), now.getMonth(), dueDateDay, 9, 0, 0);
 
-  // If due date has passed this month, schedule for next month
   if (scheduledDate < now) {
     scheduledDate.setMonth(scheduledDate.getMonth() + 1);
   }
 
-  // Trigger 1 day before due date
   const triggerDate = new Date(scheduledDate);
   triggerDate.setDate(triggerDate.getDate() - 1);
 
@@ -94,19 +89,17 @@ export const scheduleBillReminder = async (billTitle, amount, dueDateDay) => {
         data: { billTitle, amount },
       },
       trigger: {
+        channelId: 'default',
         seconds: secondsUntilTrigger,
       },
     });
   } catch (error) {
-    console.error('Failed to schedule notification:', error);
+    console.error('Failed to schedule bill notification:', error);
   }
 };
 
 /**
  * Schedules or updates a recurring weekly reminder on weekend mornings.
- * @param {number} weekday - Expo weekday index: 1 for Sunday, 7 for Saturday (default: 7)
- * @param {number} hour - Hour of the day in 24h format (e.g., 9 for 9:00 AM)
- * @param {number} minute - Minute of the hour (default: 0)
  */
 export const scheduleWeeklyLoggingReminder = async (weekday = 7, hour = 9, minute = 0) => {
   if (isAndroidExpoGo) return;
@@ -115,8 +108,8 @@ export const scheduleWeeklyLoggingReminder = async (weekday = 7, hour = 9, minut
   if (!hasPermission) return;
 
   try {
-    // Cancel existing weekly log reminders to avoid duplication when preferences change
-    const scheduled = await Notifications.getAllScheduledNotificationAsync();
+    // FIXED: Plural "getAllScheduledNotificationsAsync"
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     for (const item of scheduled) {
       if (item.content.data?.type === 'WEEKLY_LOG_REMINDER') {
         await Notifications.cancelScheduledNotificationAsync(item.identifier);
@@ -132,9 +125,10 @@ export const scheduleWeeklyLoggingReminder = async (weekday = 7, hour = 9, minut
         data: { type: 'WEEKLY_LOG_REMINDER' },
       },
       trigger: {
-        weekday: weekday, // 1 = Sunday, 7 = Saturday
-        hour: hour,       // e.g., 9 AM
-        minute: minute,
+        channelId: 'default',
+        weekday,
+        hour,
+        minute,
         repeats: true,
       },
     });
@@ -150,7 +144,8 @@ export const cancelWeeklyLoggingReminder = async () => {
   if (isAndroidExpoGo) return;
 
   try {
-    const scheduled = await Notifications.getAllScheduledNotificationAsync();
+    // FIXED: Plural "getAllScheduledNotificationsAsync"
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     for (const item of scheduled) {
       if (item.content.data?.type === 'WEEKLY_LOG_REMINDER') {
         await Notifications.cancelScheduledNotificationAsync(item.identifier);
