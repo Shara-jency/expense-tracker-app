@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isHideAmountsEnabled } from './privacyService';
 
 const WEEKLY_REMINDER_PREF_KEY = '@spendlens/weekly_reminder_enabled';
 
@@ -286,16 +287,16 @@ export const scheduleBillReminder = async (
       return;
     }
 
+    const hideAmounts = await isHideAmountsEnabled();
+    const amountText = hideAmounts
+      ? '₹ ••••'
+      : `₹${Number(amount || 0).toLocaleString('en-IN')}`;
+
     await Notifications.scheduleNotificationAsync({
       content: {
         title: `⚠️ Upcoming Bill: ${billTitle}`,
 
-        body:
-          `Your payment of ₹${Number(
-            amount || 0
-          ).toLocaleString(
-            'en-IN'
-          )} is due tomorrow.`,
+        body: `Your payment of ${amountText} is due tomorrow.`,
 
         sound: 'default',
 

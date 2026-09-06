@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, ScrollView, Dimensions } from 'react-native';
+import { View, Text, ScrollView, Dimensions, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PieChart, BarChart } from 'react-native-chart-kit';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
+import { usePrivacy } from '../context/PrivacyContext';
 import { getAnalyticsStyles } from '../styles/analyticsStyles';
 import BudgetProgressBar from '../components/BudgetProgressBar';
 import LeakCard from '../components/LeakCard';
@@ -26,6 +27,7 @@ export default function AnalyticsScreen() {
   const { theme, colors } = useTheme();
   const styles = getAnalyticsStyles(theme);
   const { expenses, bills: mandatory, monthlyIncome, loading } = useData();
+  const { hideAmounts, toggleHideAmounts, maskAmount } = usePrivacy();
 
   const categorySpends = {};
   expenses.forEach((item) => {
@@ -98,7 +100,16 @@ export default function AnalyticsScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={styles.headerTitle}>Analytics & Intelligence</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={styles.headerTitle}>Analytics & Intelligence</Text>
+        <TouchableOpacity
+          onPress={toggleHideAmounts}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel={hideAmounts ? 'Show amounts' : 'Hide amounts'}
+        >
+          <Ionicons name={hideAmounts ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
 
       {/* 1. Commitment Ratio Pie Chart */}
       <Text style={styles.sectionTitle}>Commitment Ratio Breakdown</Text>
@@ -111,7 +122,7 @@ export default function AnalyticsScreen() {
           accessor="population"
           backgroundColor="transparent"
           paddingLeft="10"
-          absolute
+          absolute={!hideAmounts}
         />
       </View>
 
@@ -134,7 +145,7 @@ export default function AnalyticsScreen() {
           yAxisLabel="₹"
           chartConfig={chartConfig}
           verticalLabelRotation={0}
-          showValuesOnTopOfBars
+          showValuesOnTopOfBars={!hideAmounts}
           fromZero
         />
       </View>
@@ -153,7 +164,7 @@ export default function AnalyticsScreen() {
             <View style={styles.leakSummaryHeader}>
               <Text style={styles.leakSummaryTitle}>Total Projected Yearly Drain</Text>
               <Text style={styles.leakTotalText}>
-                ₹{Math.round(totalYearlyLeak).toLocaleString('en-IN')}
+                {maskAmount(`₹${Math.round(totalYearlyLeak).toLocaleString('en-IN')}`)}
               </Text>
             </View>
             <Text style={styles.leakDescription}>
@@ -179,11 +190,11 @@ export default function AnalyticsScreen() {
             <View style={styles.leakSummaryHeader}>
               <Text style={styles.loanSummaryTitle}>Total Remaining Debt</Text>
               <Text style={styles.leakTotalText}>
-                ₹{Math.round(totalRemainingDebt).toLocaleString('en-IN')}
+                {maskAmount(`₹${Math.round(totalRemainingDebt).toLocaleString('en-IN')}`)}
               </Text>
             </View>
             <Text style={styles.leakDescription}>
-              ₹{totalMonthlyEMI.toLocaleString('en-IN')}/month across {activeLoans.length} active loan
+              {maskAmount(`₹${totalMonthlyEMI.toLocaleString('en-IN')}`)}/month across {activeLoans.length} active loan
               {activeLoans.length === 1 ? '' : 's'}.
             </Text>
           </View>

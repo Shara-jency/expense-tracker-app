@@ -14,6 +14,7 @@ import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
+import { usePrivacy } from '../context/PrivacyContext';
 import { getDashboardStyles } from '../styles/dashboardStyles';
 import MandatoryCard from '../components/MandatoryCard';
 import EditExpenseModal from '../components/EditExpenseModal';
@@ -51,6 +52,7 @@ export default function DashboardScreen({ navigation }) {
   const { theme, colors } = useTheme();
   const styles = getDashboardStyles(theme);
   const { expenses, bills, loading, visibleExpenseCount, hasMoreExpenses, showMoreExpenses } = useData();
+  const { hideAmounts, toggleHideAmounts, maskAmount } = usePrivacy();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -211,10 +213,21 @@ export default function DashboardScreen({ navigation }) {
             <Text style={styles.userEmailText}>{userName}</Text>
           </View>
 
-          <TouchableOpacity style={localStyles.exportBtn} onPress={() => exportExpensesToCSV(expenses, bills)}>
-            <Ionicons name="download-outline" size={14} color="#FFF" />
-            <Text style={localStyles.exportBtnText}>CSV</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity
+              onPress={toggleHideAmounts}
+              style={localStyles.privacyToggle}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel={hideAmounts ? 'Show amounts' : 'Hide amounts'}
+            >
+              <Ionicons name={hideAmounts ? 'eye-off-outline' : 'eye-outline'} size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={localStyles.exportBtn} onPress={() => exportExpensesToCSV(expenses, bills)}>
+              <Ionicons name="download-outline" size={14} color="#FFF" />
+              <Text style={localStyles.exportBtnText}>CSV</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Summary Cards */}
@@ -224,14 +237,14 @@ export default function DashboardScreen({ navigation }) {
               <Ionicons name="wallet-outline" size={16} color={colors.accent} />
             </View>
             <Text style={styles.summaryLabel}>Total Expenses</Text>
-            <Text style={styles.summaryAmount}>₹{totalSpent.toFixed(2)}</Text>
+            <Text style={styles.summaryAmount}>{maskAmount(`₹${totalSpent.toFixed(2)}`)}</Text>
           </View>
           <View style={[styles.summaryCard, { flex: 1, borderColor: '#F59E0B' }]}>
             <View style={[styles.summaryIconWrap, { backgroundColor: '#F59E0B26' }]}>
               <Ionicons name="calendar-outline" size={16} color="#F59E0B" />
             </View>
             <Text style={styles.summaryLabel}>Pending Bills</Text>
-            <Text style={[styles.summaryAmount, { color: '#F59E0B' }]}>₹{totalMandatory.toFixed(2)}</Text>
+            <Text style={[styles.summaryAmount, { color: '#F59E0B' }]}>{maskAmount(`₹${totalMandatory.toFixed(2)}`)}</Text>
           </View>
         </View>
 
@@ -282,7 +295,7 @@ export default function DashboardScreen({ navigation }) {
               <View style={styles.liabilityOverviewHeader}>
                 <Text style={styles.liabilityOverviewTitle}>This Month's Total</Text>
                 <Text style={styles.liabilityOverviewTotal}>
-                  ₹{liabilitySummary.totalMonthly.toFixed(2)}
+                  {maskAmount(`₹${liabilitySummary.totalMonthly.toFixed(2)}`)}
                 </Text>
               </View>
 
@@ -290,26 +303,26 @@ export default function DashboardScreen({ navigation }) {
                 <View style={styles.liabilityStatItem}>
                   <Text style={styles.liabilityStatLabel}>Paid</Text>
                   <Text style={[styles.liabilityStatValue, { color: '#10B981' }]}>
-                    ₹{liabilitySummary.paidThisMonth.toFixed(2)}
+                    {maskAmount(`₹${liabilitySummary.paidThisMonth.toFixed(2)}`)}
                   </Text>
                 </View>
                 <View style={styles.liabilityStatItem}>
                   <Text style={styles.liabilityStatLabel}>Pending</Text>
                   <Text style={[styles.liabilityStatValue, { color: '#F59E0B' }]}>
-                    ₹{liabilitySummary.pendingThisMonth.toFixed(2)}
+                    {maskAmount(`₹${liabilitySummary.pendingThisMonth.toFixed(2)}`)}
                   </Text>
                 </View>
                 <View style={styles.liabilityStatItem}>
                   <Text style={styles.liabilityStatLabel}>Overdue</Text>
                   <Text style={[styles.liabilityStatValue, { color: colors.danger }]}>
-                    ₹{liabilitySummary.overdueThisMonth.toFixed(2)}
+                    {maskAmount(`₹${liabilitySummary.overdueThisMonth.toFixed(2)}`)}
                   </Text>
                 </View>
               </View>
 
               {liabilitySummary.upcomingCount > 0 && (
                 <Text style={styles.liabilityUpcomingNote}>
-                  + ₹{liabilitySummary.upcomingTotal.toFixed(2)} scheduled across{' '}
+                  + {maskAmount(`₹${liabilitySummary.upcomingTotal.toFixed(2)}`)} scheduled across{' '}
                   {liabilitySummary.upcomingCount} bill{liabilitySummary.upcomingCount === 1 ? '' : 's'} for
                   a later month
                 </Text>
@@ -377,7 +390,7 @@ export default function DashboardScreen({ navigation }) {
                 </View>
 
                 <View style={styles.expenseRight}>
-                  <Text style={styles.expenseAmount}>-₹{(item.amount || 0).toFixed(2)}</Text>
+                  <Text style={styles.expenseAmount}>{maskAmount(`-₹${(item.amount || 0).toFixed(2)}`)}</Text>
                   <View style={styles.expenseActions}>
                     <TouchableOpacity
                       onPress={() => handleEditExpense(item)}
@@ -430,6 +443,13 @@ export default function DashboardScreen({ navigation }) {
 }
 
 const localStyles = StyleSheet.create({
+  privacyToggle: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   exportBtn: {
     flexDirection: 'row',
     alignItems: 'center',

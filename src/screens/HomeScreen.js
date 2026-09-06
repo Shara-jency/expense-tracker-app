@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { auth } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
+import { usePrivacy } from '../context/PrivacyContext';
 import { getHomeStyles } from '../styles/homeStyles';
 import InlineLoader from '../components/InlineLoader';
 import { summarizeLiabilities } from '../services/liabilityService';
@@ -13,6 +14,7 @@ export default function HomeScreen({ navigation }) {
   const { theme, colors } = useTheme();
   const styles = getHomeStyles(theme);
   const { expenses, bills, loading } = useData();
+  const { hideAmounts, toggleHideAmounts, maskAmount } = usePrivacy();
 
   const user = auth.currentUser;
   const userName = user?.displayName || user?.email?.split('@')[0] || 'there';
@@ -85,8 +87,21 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={styles.greeting}>Welcome back,</Text>
-      <Text style={styles.userName}>{userName}</Text>
+      <View style={styles.headerRow}>
+        <View>
+          <Text style={styles.greeting}>Welcome back,</Text>
+          <Text style={styles.userName}>{userName}</Text>
+        </View>
+
+        <TouchableOpacity
+          onPress={toggleHideAmounts}
+          style={styles.privacyToggle}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityLabel={hideAmounts ? 'Show amounts' : 'Hide amounts'}
+        >
+          <Ionicons name={hideAmounts ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
+      </View>
 
       <View style={styles.cardGrid}>
         {cards.map((card, index) => {
@@ -102,7 +117,7 @@ export default function HomeScreen({ navigation }) {
                 <Ionicons name={card.icon} size={20} color={card.color} />
               </View>
               <Text style={styles.cardTitle}>{card.title}</Text>
-              <Text style={styles.cardValue}>{card.value}</Text>
+              <Text style={styles.cardValue}>{maskAmount(card.value)}</Text>
               <Text style={styles.cardSubtitle}>{card.subtitle}</Text>
             </TouchableOpacity>
           );

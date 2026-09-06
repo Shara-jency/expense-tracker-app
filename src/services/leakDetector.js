@@ -49,7 +49,6 @@ export const detectFinancialLeaks = (expenses = []) => {
         monthlyOccurrences: data.count,
         totalMonthlySpent: data.totalSpent,
         projectedYearlyLeak: projectedYearly,
-        insightMessage: `Purchased ${data.count}x in the last 30 days. At this rate, this habit costs ₹${projectedYearly.toLocaleString('en-IN')}/year.`,
       });
     }
   });

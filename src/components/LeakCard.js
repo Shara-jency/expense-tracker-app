@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, borderRadius, spacing } from '../styles/theme';
+import { usePrivacy } from '../context/PrivacyContext';
 
 export default function LeakCard({ leak, theme = 'dark' }) {
   const currentColors = colors[theme] || colors.dark;
+  const { maskAmount } = usePrivacy();
 
   return (
     <View style={[styles.card, { backgroundColor: currentColors.cardBackground, borderColor: '#EF4444' }]}>
@@ -17,12 +19,15 @@ export default function LeakCard({ leak, theme = 'dark' }) {
       </View>
 
       <Text style={[styles.title, { color: currentColors.textPrimary }]}>{leak.title}</Text>
-      <Text style={[styles.insight, { color: currentColors.textSecondary }]}>{leak.insightMessage}</Text>
+      <Text style={[styles.insight, { color: currentColors.textSecondary }]}>
+        Purchased {leak.monthlyOccurrences}x in the last 30 days. At this rate, this habit costs{' '}
+        {maskAmount(`₹${Math.round(leak.projectedYearlyLeak).toLocaleString('en-IN')}`)}/year.
+      </Text>
 
       <View style={styles.footer}>
         <Text style={styles.projectionLabel}>Projected Yearly Drain:</Text>
         <Text style={styles.projectionAmount}>
-          -₹{Math.round(leak.projectedYearlyLeak).toLocaleString('en-IN')}
+          {maskAmount(`-₹${Math.round(leak.projectedYearlyLeak).toLocaleString('en-IN')}`)}
         </Text>
       </View>
     </View>

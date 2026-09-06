@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { getMandatoryStyles } from '../styles/mandatoryStyles';
 import { colors } from '../styles/theme';
+import { usePrivacy } from '../context/PrivacyContext';
 import { getLiabilityStatus } from '../services/liabilityService';
 
 const monthsBetween = (from, to) =>
@@ -35,6 +36,7 @@ export default function MandatoryCard({
 }) {
   const styles = getMandatoryStyles(theme);
   const currentColors = colors[theme] || colors.dark;
+  const { maskAmount } = usePrivacy();
 
   const status = getLiabilityStatus({ category, maturityDate, isPaid, dueDate });
   const isLoan = category === 'Loan EMI' && !!maturityDate;
@@ -96,7 +98,7 @@ export default function MandatoryCard({
       </View>
 
       <View style={styles.footerRow}>
-        <Text style={styles.amount}>₹{Number(amount || 0).toFixed(2)}</Text>
+        <Text style={styles.amount}>{maskAmount(`₹${Number(amount || 0).toFixed(2)}`)}</Text>
         {isMatured ? (
           <Text style={[styles.statusBadge, { color: statusColor, backgroundColor: statusBg }]}>
             {statusLabel}

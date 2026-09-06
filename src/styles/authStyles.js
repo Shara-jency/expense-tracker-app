@@ -40,6 +40,26 @@ export const getAuthStyles = (themeMode = 'dark') => {
       color: currentColors.textPrimary,
       borderColor: currentColors.border,
     },
+    passwordInputWrap: {
+      justifyContent: 'center',
+      marginBottom: spacing.md,
+    },
+    passwordInput: {
+      height: 50,
+      borderWidth: 1,
+      borderRadius: borderRadius.md,
+      paddingHorizontal: spacing.md,
+      paddingRight: 44,
+      fontSize: 16,
+      backgroundColor: currentColors.cardBackground,
+      color: currentColors.textPrimary,
+      borderColor: currentColors.border,
+    },
+    passwordToggleIcon: {
+      position: 'absolute',
+      right: spacing.md,
+      padding: 4,
+    },
     authForgotButton: {
       alignSelf: 'flex-end',
       marginBottom: spacing.sm,

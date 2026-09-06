@@ -16,10 +16,25 @@ export const getHomeStyles = (themeMode = 'dark') => {
       alignItems: 'center',
       backgroundColor: currentColors.background,
     },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginTop: spacing.lg,
+    },
+    privacyToggle: {
+      width: 36,
+      height: 36,
+      borderRadius: borderRadius.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: currentColors.cardBackground,
+      borderWidth: 1,
+      borderColor: currentColors.border,
+    },
     greeting: {
       fontSize: 14,
       color: currentColors.textSecondary,
-      marginTop: spacing.lg,
     },
     userName: {
       fontSize: 24,

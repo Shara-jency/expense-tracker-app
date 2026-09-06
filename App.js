@@ -15,6 +15,7 @@ import {
   ThemeProvider,
   useTheme,
 } from './src/context/ThemeContext';
+import { PrivacyProvider } from './src/context/PrivacyContext';
 import { DataProvider } from './src/context/DataContext';
 
 // Notification service
@@ -70,6 +71,12 @@ function AppTabs() {
           let iconName;
 
           switch (route.name) {
+            case 'Home':
+              iconName = focused
+                ? 'home'
+                : 'home-outline';
+              break;
+
             case 'Dashboard':
               iconName = focused
                 ? 'wallet'
@@ -125,12 +132,11 @@ function AppTabs() {
         tabBarInactiveTintColor: colors.textSecondary,
       })}
     >
-      {/* Landing overview shown right after login. Hidden from the tab bar
-          itself — reachable only as the initial route or via navigation.navigate('Home'). */}
+      {/* Landing overview: shown right after login, and always reachable
+          from the tab bar to get back to the at-a-glance cards. */}
       <Tab.Screen
         name="Home"
         component={HomeScreen}
-        options={{ tabBarButton: () => null }}
       />
 
       <Tab.Screen
@@ -338,7 +344,9 @@ export default function App() {
     <ErrorBoundary>
       <SafeAreaProvider>
         <ThemeProvider>
-          <MainApp />
+          <PrivacyProvider>
+            <MainApp />
+          </PrivacyProvider>
         </ThemeProvider>
       </SafeAreaProvider>
     </ErrorBoundary>

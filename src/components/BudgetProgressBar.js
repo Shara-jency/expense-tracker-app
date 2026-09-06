@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { getBudgetStyles } from '../styles/budgetStyles';
+import { usePrivacy } from '../context/PrivacyContext';
 
 export default function BudgetProgressBar({ category, spent, limit, theme = 'dark' }) {
   const styles = getBudgetStyles(theme);
+  const { maskAmount } = usePrivacy();
 
   const percentage = Math.min(Math.round((spent / limit) * 100), 100);
   
@@ -20,7 +22,7 @@ export default function BudgetProgressBar({ category, spent, limit, theme = 'dar
       <View style={styles.header}>
         <Text style={styles.categoryName}>{category}</Text>
         <Text style={styles.amountText}>
-          ₹{spent.toFixed(0)} / ₹{limit.toFixed(0)} ({percentage}%)
+          {maskAmount(`₹${spent.toFixed(0)}`)} / {maskAmount(`₹${limit.toFixed(0)}`)} ({percentage}%)
         </Text>
       </View>
 

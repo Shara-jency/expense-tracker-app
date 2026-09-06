@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { auth, db } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { useData } from '../context/DataContext';
+import { usePrivacy } from '../context/PrivacyContext';
 import { getProfileStyles } from '../styles/profileStyles';
 import {
   areNotificationsAvailable,
@@ -17,6 +18,7 @@ export default function ProfileScreen() {
   const { theme, toggleTheme, colors } = useTheme();
   const styles = getProfileStyles(theme);
   const { monthlyIncome } = useData();
+  const { hideAmounts, toggleHideAmounts, maskAmount } = usePrivacy();
 
   const currentUser = auth.currentUser;
   const displayName = currentUser?.displayName || 'User';
@@ -134,11 +136,27 @@ export default function ProfileScreen() {
         ) : (
           <TouchableOpacity onPress={handleEditIncome} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Text style={styles.settingText}>
-              {monthlyIncome > 0 ? `₹${monthlyIncome.toLocaleString('en-IN')}` : 'Not set'}
+              {monthlyIncome > 0 ? maskAmount(`₹${monthlyIncome.toLocaleString('en-IN')}`) : 'Not set'}
             </Text>
             <Ionicons name="create-outline" size={16} color={colors.accent} />
           </TouchableOpacity>
         )}
+      </View>
+
+      {/* Hide Amounts Privacy Switcher */}
+      <View style={styles.settingRow}>
+        <View style={{ flex: 1, marginRight: 12 }}>
+          <Text style={styles.settingText}>Hide Amounts</Text>
+          <Text style={styles.settingSubtext}>
+            Mask every ₹ figure across the app until you switch it back off.
+          </Text>
+        </View>
+        <Switch
+          value={hideAmounts}
+          onValueChange={toggleHideAmounts}
+          trackColor={{ false: colors.border, true: colors.accent }}
+          thumbColor="#FFFFFF"
+        />
       </View>
 
       {/* Dark/Light Mode Switcher */}

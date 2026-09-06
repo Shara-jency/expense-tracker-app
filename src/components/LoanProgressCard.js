@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors, borderRadius, spacing } from '../styles/theme';
+import { usePrivacy } from '../context/PrivacyContext';
 
 export default function LoanProgressCard({ loan, theme = 'dark' }) {
   const currentColors = colors[theme] || colors.dark;
+  const { maskAmount } = usePrivacy();
 
   const maturityLabel = new Date(loan.maturityDate).toLocaleDateString('en-IN', {
     month: 'short',
@@ -22,7 +24,7 @@ export default function LoanProgressCard({ loan, theme = 'dark' }) {
       </View>
 
       <Text style={[styles.emi, { color: currentColors.textPrimary }]}>
-        ₹{loan.monthlyAmount.toLocaleString('en-IN')}
+        {maskAmount(`₹${loan.monthlyAmount.toLocaleString('en-IN')}`)}
         <Text style={[styles.emiSuffix, { color: currentColors.textSecondary }]}> / month</Text>
       </Text>
 
@@ -32,7 +34,7 @@ export default function LoanProgressCard({ loan, theme = 'dark' }) {
         </Text>
         {!loan.isMatured && (
           <Text style={[styles.footerLabel, { color: currentColors.textSecondary }]}>
-            ₹{Math.round(loan.projectedRemainingPayout).toLocaleString('en-IN')} remaining
+            {maskAmount(`₹${Math.round(loan.projectedRemainingPayout).toLocaleString('en-IN')}`)} remaining
           </Text>
         )}
       </View>
