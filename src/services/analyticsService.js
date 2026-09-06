@@ -1,11 +1,4 @@
-/**
- * A Loan EMI whose maturity date has passed is fully repaid and should no
- * longer count as an ongoing fixed obligation.
- */
-const isMaturedLoan = (bill) =>
-  bill.category === 'Loan EMI' &&
-  !!bill.maturityDate &&
-  bill.maturityDate < new Date().toISOString().split('T')[0];
+import { getLiabilityStatus } from './liabilityService';
 
 /**
  * Processes raw expenses and mandatory liabilities into monthly trend data
@@ -17,7 +10,7 @@ export const processAnalyticsData = (expenses = [], mandatoryExpenses = [], mont
 
   // 1. Calculate Fixed Obligations (excluding loans that have already matured)
   mandatoryExpenses.forEach((bill) => {
-    if (isMaturedLoan(bill)) return;
+    if (getLiabilityStatus(bill) === 'matured') return;
     totalFixed += Number(bill.amount) || 0;
   });
 

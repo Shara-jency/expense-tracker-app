@@ -25,6 +25,7 @@ import { useTheme } from '../context/ThemeContext';
 import { getDashboardStyles } from '../styles/dashboardStyles';
 import MandatoryCard from '../components/MandatoryCard';
 import EditExpenseModal from '../components/EditExpenseModal';
+import EditLiabilityModal from '../components/EditLiabilityModal';
 import GlobalFAB from '../components/GlobalFAB';
 import InlineLoader from '../components/InlineLoader';
 import { exportExpensesToCSV } from '../services/exportService';
@@ -35,6 +36,7 @@ import {
   scheduleWeeklyLoggingReminder,
   isWeeklyReminderEnabled,
 } from '../services/notificationService';
+import { getLiabilityStatus, summarizeLiabilities } from '../services/liabilityService';
 import { EXPENSE_CATEGORIES } from '../constants/categories';
 
 const CATEGORIES = ['All', ...EXPENSE_CATEGORIES];
@@ -72,6 +74,11 @@ export default function DashboardScreen({ navigation }) {
 
   const [editingExpense, setEditingExpense] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  const [editingBill, setEditingBill] = useState(null);
+  const [isEditBillModalOpen, setIsEditBillModalOpen] = useState(false);
+
+  const [showPaidBills, setShowPaidBills] = useState(false);
 
   const user = auth.currentUser;
   const userName = user?.displayName || user?.email?.split('@')[0] || 'User';
@@ -168,6 +175,45 @@ export default function DashboardScreen({ navigation }) {
     setIsEditModalOpen(true);
   };
 
+  const handleEditBill = (bill) => {
+    setEditingBill(bill);
+    setIsEditBillModalOpen(true);
+  };
+
+  const handleDeleteBill = (id, title) => {
+    Alert.alert('Delete Liability', `Are you sure you want to delete "${title}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await cancelBillReminder(id);
+            await deleteDoc(doc(db, 'mandatory_expenses', id));
+          } catch (e) {
+            Alert.alert('Error', 'Could not delete liability: ' + e.message);
+          }
+        },
+      },
+    ]);
+  };
+
+  const renderBillCard = (bill) => (
+    <MandatoryCard
+      key={bill.id}
+      title={bill.title}
+      amount={bill.amount}
+      dueDate={bill.dueDate}
+      isPaid={bill.isPaid}
+      category={bill.category}
+      maturityDate={bill.maturityDate}
+      onTogglePaid={() => toggleBillPaidStatus(bill.id, bill.isPaid)}
+      onEdit={() => handleEditBill(bill)}
+      onDelete={() => handleDeleteBill(bill.id, bill.title)}
+      theme={theme}
+    />
+  );
+
   const filteredExpenses = expenses.filter((item) => {
     const matchesSearch = (item.title || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
@@ -175,9 +221,22 @@ export default function DashboardScreen({ navigation }) {
   });
 
   const totalSpent = expenses.reduce((sum, item) => sum + (item.amount || 0), 0);
-  const totalMandatory = bills
-    .filter((b) => !b.isPaid)
-    .reduce((sum, item) => sum + (item.amount || 0), 0);
+
+  const liabilitySummary = summarizeLiabilities(bills);
+  const totalMandatory = liabilitySummary.pendingThisMonth + liabilitySummary.overdueThisMonth;
+
+  const isSettled = (bill) => {
+    const status = getLiabilityStatus(bill);
+    return status === 'paid' || status === 'matured';
+  };
+
+  const billsDueThisMonth = bills.filter((b) => getLiabilityStatus(b) !== 'upcoming');
+  const upcomingBills = bills.filter((b) => getLiabilityStatus(b) === 'upcoming');
+
+  const hiddenPaidCount = billsDueThisMonth.filter(isSettled).length;
+  const visibleBillsDueThisMonth = showPaidBills
+    ? billsDueThisMonth
+    : billsDueThisMonth.filter((b) => !isSettled(b));
 
   const formatDate = (rawDate) => {
     if (!rawDate) return '';
@@ -270,23 +329,74 @@ export default function DashboardScreen({ navigation }) {
           </ScrollView>
         </View>
 
-        {/* Upcoming Bills & Liabilities */}
+        {/* Fixed Liabilities Overview */}
         {bills.length > 0 && selectedCategory === 'All' && !searchQuery && (
           <View style={{ marginBottom: 20 }}>
-            <Text style={styles.sectionTitle}>Upcoming Bills & Liabilities</Text>
-            {bills.map((bill) => (
-              <MandatoryCard
-                key={bill.id}
-                title={bill.title}
-                amount={bill.amount}
-                dueDate={bill.dueDate}
-                isPaid={bill.isPaid}
-                category={bill.category}
-                maturityDate={bill.maturityDate}
-                onTogglePaid={() => toggleBillPaidStatus(bill.id, bill.isPaid)}
-                theme={theme}
-              />
-            ))}
+            <Text style={styles.sectionTitle}>Fixed Liabilities Overview</Text>
+
+            <View style={styles.liabilityOverviewCard}>
+              <View style={styles.liabilityOverviewHeader}>
+                <Text style={styles.liabilityOverviewTitle}>This Month's Total</Text>
+                <Text style={styles.liabilityOverviewTotal}>
+                  ₹{liabilitySummary.totalMonthly.toFixed(2)}
+                </Text>
+              </View>
+
+              <View style={styles.liabilityStatRow}>
+                <View style={styles.liabilityStatItem}>
+                  <Text style={styles.liabilityStatLabel}>Paid</Text>
+                  <Text style={[styles.liabilityStatValue, { color: '#10B981' }]}>
+                    ₹{liabilitySummary.paidThisMonth.toFixed(2)}
+                  </Text>
+                </View>
+                <View style={styles.liabilityStatItem}>
+                  <Text style={styles.liabilityStatLabel}>Pending</Text>
+                  <Text style={[styles.liabilityStatValue, { color: '#F59E0B' }]}>
+                    ₹{liabilitySummary.pendingThisMonth.toFixed(2)}
+                  </Text>
+                </View>
+                <View style={styles.liabilityStatItem}>
+                  <Text style={styles.liabilityStatLabel}>Overdue</Text>
+                  <Text style={[styles.liabilityStatValue, { color: colors.danger }]}>
+                    ₹{liabilitySummary.overdueThisMonth.toFixed(2)}
+                  </Text>
+                </View>
+              </View>
+
+              {liabilitySummary.upcomingCount > 0 && (
+                <Text style={styles.liabilityUpcomingNote}>
+                  + ₹{liabilitySummary.upcomingTotal.toFixed(2)} scheduled across{' '}
+                  {liabilitySummary.upcomingCount} bill{liabilitySummary.upcomingCount === 1 ? '' : 's'} for
+                  a later month
+                </Text>
+              )}
+            </View>
+
+            <View style={[styles.recentHeader, { marginTop: 16 }]}>
+              <Text style={styles.sectionTitle}>Bills Due This Month</Text>
+              {hiddenPaidCount > 0 && (
+                <TouchableOpacity onPress={() => setShowPaidBills((v) => !v)}>
+                  <Text style={{ color: colors.accent, fontSize: 12, fontWeight: '600' }}>
+                    {showPaidBills ? 'Hide paid' : `Show paid (${hiddenPaidCount})`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {billsDueThisMonth.length === 0 ? (
+              <Text style={styles.emptyText}>No bills due this month. 🎉</Text>
+            ) : visibleBillsDueThisMonth.length === 0 ? (
+              <Text style={styles.emptyText}>All bills for this month are paid. 🎉</Text>
+            ) : (
+              visibleBillsDueThisMonth.map(renderBillCard)
+            )}
+
+            {upcomingBills.length > 0 && (
+              <>
+                <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Scheduled for Later</Text>
+                {upcomingBills.map(renderBillCard)}
+              </>
+            )}
           </View>
         )}
 
@@ -348,11 +458,17 @@ export default function DashboardScreen({ navigation }) {
           })
         )}
 
-        {/* Edit Modal */}
+        {/* Edit Modals */}
         <EditExpenseModal
           visible={isEditModalOpen}
           expense={editingExpense}
           onClose={() => setIsEditModalOpen(false)}
+          theme={theme}
+        />
+        <EditLiabilityModal
+          visible={isEditBillModalOpen}
+          liability={editingBill}
+          onClose={() => setIsEditBillModalOpen(false)}
           theme={theme}
         />
       </ScrollView>

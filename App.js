@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StatusBar, View } from 'react-native';
+import { StatusBar, AppState, Alert } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -7,7 +7,7 @@ import {
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { auth } from './src/config/firebase';
@@ -22,11 +22,19 @@ import {
   requestNotificationPermissions,
 } from './src/services/notificationService';
 
+// Session service (idle / closed-app auto logout)
+import {
+  recordActivity,
+  hasSessionExpired,
+  clearActivity,
+} from './src/services/sessionService';
+
 // Components
 import AppLoader from './src/components/AppLoader';
 import ErrorBoundary from './src/components/ErrorBoundary';
 
 // Screens
+import HomeScreen from './src/screens/HomeScreen';
 import AuthScreen from './src/screens/AuthScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import AddExpenseScreen from './src/screens/AddExpenseScreen';
@@ -38,6 +46,13 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const Tab = createBottomTabNavigator();
 
+const showSessionExpiredWarning = () => {
+  Alert.alert(
+    'Session Expired',
+    "You've been logged out after 10 minutes of inactivity. Please log in again."
+  );
+};
+
 /**
  * Bottom Tab Navigation
  */
@@ -46,6 +61,7 @@ function AppTabs() {
 
   return (
     <Tab.Navigator
+      initialRouteName="Home"
       screenOptions={({ route }) => ({
         headerShown: false,
 
@@ -108,6 +124,14 @@ function AppTabs() {
         tabBarInactiveTintColor: colors.textSecondary,
       })}
     >
+      {/* Landing overview shown right after login. Hidden from the tab bar
+          itself — reachable only as the initial route or via navigation.navigate('Home'). */}
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ tabBarButton: () => null }}
+      />
+
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
@@ -141,14 +165,30 @@ function MainApp() {
   const { theme, colors } = useTheme();
 
   /**
-   * Firebase authentication listener
+   * Firebase authentication listener.
+   *
+   * A restored session (the app was closed and reopened) is checked
+   * against the session timeout before it's ever applied to state, so an
+   * expired session never flashes the Dashboard before redirecting to login.
    */
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(
       auth,
       async (authenticatedUser) => {
-        setUser(authenticatedUser);
+        if (authenticatedUser) {
+          const expired = await hasSessionExpired();
 
+          if (expired) {
+            await clearActivity();
+            await signOut(auth);
+            showSessionExpiredWarning();
+            return; // The resulting null-user callback below finishes startup.
+          }
+
+          await recordActivity();
+        }
+
+        setUser(authenticatedUser);
         setInitializing(false);
 
         // Safely hide splash screen
@@ -158,6 +198,40 @@ function MainApp() {
 
     return unsubscribe;
   }, []);
+
+  /**
+   * Idle / backgrounded session timeout.
+   *
+   * Runs only while a user is signed in: a periodic check catches
+   * inactivity while the app stays open, and the AppState listener catches
+   * the app being backgrounded and reopened after the timeout has passed.
+   */
+  useEffect(() => {
+    if (!user) return;
+
+    const checkExpiry = async () => {
+      const expired = await hasSessionExpired();
+      if (!expired) return;
+
+      await clearActivity();
+      await signOut(auth);
+      showSessionExpiredWarning();
+    };
+
+    recordActivity();
+
+    const intervalId = setInterval(checkExpiry, 30 * 1000);
+    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        checkExpiry();
+      }
+    });
+
+    return () => {
+      clearInterval(intervalId);
+      appStateSubscription.remove();
+    };
+  }, [user]);
 
   /**
    * Initialize notifications.
@@ -206,6 +280,16 @@ function MainApp() {
   }, [initializing]);
 
   /**
+   * Any touch anywhere in the signed-in app counts as activity and resets
+   * the idle-logout clock.
+   */
+  const handleUserActivity = useCallback(() => {
+    if (user) {
+      recordActivity();
+    }
+  }, [user]);
+
+  /**
    * Loading screen
    */
   if (initializing) {
@@ -222,6 +306,7 @@ function MainApp() {
         backgroundColor: colors.background,
       }}
       onLayout={onLayoutRootView}
+      onTouchStart={handleUserActivity}
     >
       <StatusBar
         barStyle={
@@ -244,17 +329,7 @@ function MainApp() {
 
 /**
  * Root application
-//  */
-// export default function App() {
-//   return (
-//     <SafeAreaProvider>
-//       <ThemeProvider>
-//         <MainApp />
-//       </ThemeProvider>
-//     </SafeAreaProvider>
-//   );
-// }
-
+ */
 export default function App() {
   return (
     <ErrorBoundary>

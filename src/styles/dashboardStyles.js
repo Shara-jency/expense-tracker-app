@@ -135,5 +135,55 @@ export const getDashboardStyles = (themeMode = 'dark') => {
       alignItems: 'center',
       backgroundColor: currentColors.background,
     },
+
+    // Fixed Liabilities Overview card
+    liabilityOverviewCard: {
+      backgroundColor: currentColors.cardBackground,
+      borderRadius: borderRadius.md,
+      borderWidth: 1,
+      borderColor: currentColors.accent,
+      padding: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    liabilityOverviewHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    liabilityOverviewTitle: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: currentColors.textSecondary,
+    },
+    liabilityOverviewTotal: {
+      fontSize: 20,
+      fontWeight: 'bold',
+      color: currentColors.textPrimary,
+    },
+    liabilityStatRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: spacing.sm,
+      paddingTop: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: currentColors.border,
+    },
+    liabilityStatItem: {
+      alignItems: 'flex-start',
+    },
+    liabilityStatLabel: {
+      fontSize: 11,
+      color: currentColors.textSecondary,
+      marginBottom: 2,
+    },
+    liabilityStatValue: {
+      fontSize: 14,
+      fontWeight: 'bold',
+    },
+    liabilityUpcomingNote: {
+      fontSize: 12,
+      color: currentColors.textSecondary,
+      marginTop: spacing.sm,
+    },
   });
 };

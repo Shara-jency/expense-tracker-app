@@ -12,13 +12,28 @@ export const getMandatoryStyles = (themeMode = 'dark') => {
       marginVertical: spacing.xs,
       borderWidth: 1,
       borderColor: currentColors.border,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
     },
     cardOverdue: {
       borderColor: currentColors.danger,
       backgroundColor: currentColors.dangerLight || '#2A1215',
+    },
+    headerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: 4,
+      marginLeft: spacing.sm,
+    },
+    iconButton: {
+      width: 26,
+      height: 26,
+      borderRadius: borderRadius.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: currentColors.background,
     },
     title: {
       fontSize: 15,
@@ -36,6 +51,15 @@ export const getMandatoryStyles = (themeMode = 'dark') => {
       color: currentColors.accent,
       marginTop: 2,
     },
+    footerRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: spacing.sm,
+      paddingTop: spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: currentColors.border,
+    },
     amount: {
       fontSize: 16,
       fontWeight: 'bold',
@@ -47,8 +71,6 @@ export const getMandatoryStyles = (themeMode = 'dark') => {
       paddingHorizontal: spacing.xs,
       paddingVertical: 2,
       borderRadius: borderRadius.sm,
-      marginTop: 4,
-      textAlign: 'right',
     },
   });
 };
