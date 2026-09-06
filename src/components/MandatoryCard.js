@@ -26,6 +26,8 @@ export default function MandatoryCard({
   isPaid,
   category,
   maturityDate,
+  isRecurring,
+  lastPaidDate,
   onTogglePaid,
   onEdit,
   onDelete,
@@ -49,7 +51,14 @@ export default function MandatoryCard({
     <View style={[styles.card, isOverdue && styles.cardOverdue]}>
       <View style={styles.headerRow}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>{title}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.title}>{title}</Text>
+            {isRecurring && (
+              <View style={styles.recurringBadge}>
+                <Ionicons name="repeat" size={10} color={currentColors.accent} />
+              </View>
+            )}
+          </View>
           <Text style={styles.dueDate}>
             {status === 'upcoming' ? 'Due (next month): ' : 'Due Date: '}
             {dueDate}
@@ -60,6 +69,9 @@ export default function MandatoryCard({
                 ? '🏁 Loan matured'
                 : `🏁 Ends ${formatMonthYear(maturityDate)} • ${monthsRemaining} mo left`}
             </Text>
+          )}
+          {!!lastPaidDate && (
+            <Text style={styles.lastPaidText}>Last paid {formatMonthYear(lastPaidDate)}</Text>
           )}
         </View>
 

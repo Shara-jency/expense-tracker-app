@@ -10,7 +10,12 @@ import {
   KeyboardAvoidingView,
   ScrollView,
 } from 'react-native';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  sendPasswordResetEmail,
+} from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { getAuthStyles } from '../styles/authStyles';
@@ -24,6 +29,7 @@ export default function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleAuth = async () => {
     if (!email || !password || (!isLogin && !name.trim())) {
@@ -46,6 +52,23 @@ export default function AuthScreen() {
       Alert.alert('Authentication Error', error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert('Email Required', 'Enter your account email above first, then tap "Forgot Password?" again.');
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      Alert.alert('Check Your Email', `A password reset link has been sent to ${email.trim()}.`);
+    } catch (error) {
+      Alert.alert('Reset Failed', error.message);
+    } finally {
+      setResetLoading(false);
     }
   };
 
@@ -95,6 +118,18 @@ export default function AuthScreen() {
           onChangeText={setPassword}
           secureTextEntry
         />
+
+        {isLogin && (
+          <TouchableOpacity
+            style={styles.authForgotButton}
+            onPress={handleForgotPassword}
+            disabled={resetLoading}
+          >
+            <Text style={styles.authForgotText}>
+              {resetLoading ? 'Sending reset link...' : 'Forgot Password?'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           style={styles.authButton}

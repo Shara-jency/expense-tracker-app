@@ -185,5 +185,16 @@ export const getDashboardStyles = (themeMode = 'dark') => {
       color: currentColors.textSecondary,
       marginTop: spacing.sm,
     },
+
+    loadMoreButton: {
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      marginTop: spacing.xs,
+    },
+    loadMoreText: {
+      color: currentColors.accent,
+      fontSize: 13,
+      fontWeight: '600',
+    },
   });
 };

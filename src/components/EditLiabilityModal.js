@@ -10,6 +10,7 @@ import {
   ScrollView,
   Platform,
   KeyboardAvoidingView,
+  Switch,
 } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
@@ -40,6 +41,7 @@ export default function EditLiabilityModal({ visible, liability, onClose, theme 
   const [showDuePicker, setShowDuePicker] = useState(false);
   const [maturityDate, setMaturityDate] = useState(null);
   const [showMaturityPicker, setShowMaturityPicker] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(true);
   const [saving, setSaving] = useState(false);
 
   const isLoanEmi = category === 'Loan EMI';
@@ -51,6 +53,7 @@ export default function EditLiabilityModal({ visible, liability, onClose, theme 
       setCategory(liability.category || FIXED_BILL_CATEGORIES[0]);
       setDueDate(toDateOrNull(liability.dueDate) || new Date());
       setMaturityDate(toDateOrNull(liability.maturityDate));
+      setIsRecurring(liability.isRecurring !== false);
     }
   }, [liability]);
 
@@ -112,6 +115,7 @@ export default function EditLiabilityModal({ visible, liability, onClose, theme 
         category,
         dueDate: dueDate.toISOString().split('T')[0],
         maturityDate: isLoanEmi ? maturityDate.toISOString().split('T')[0] : null,
+        isRecurring,
       });
       onClose();
     } catch (error) {
@@ -160,6 +164,18 @@ export default function EditLiabilityModal({ visible, liability, onClose, theme 
             {showDuePicker && DateTimePicker && (
               <DateTimePicker value={dueDate} mode="date" display="default" onChange={handleDueDateChange} />
             )}
+
+            <View style={styles.recurringRow}>
+              <Text style={[styles.label, { color: currentColors.textSecondary, marginTop: 0, marginBottom: 0 }]}>
+                Recurring Monthly Bill
+              </Text>
+              <Switch
+                value={isRecurring}
+                onValueChange={setIsRecurring}
+                trackColor={{ false: currentColors.border, true: currentColors.accent }}
+                thumbColor="#FFFFFF"
+              />
+            </View>
 
             <Text style={[styles.label, { color: currentColors.textSecondary }]}>Category</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryContainer}>
@@ -261,6 +277,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: borderRadius.sm,
     padding: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  recurringRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: spacing.sm,
   },
   categoryContainer: {

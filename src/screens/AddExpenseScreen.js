@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
   KeyboardAvoidingView,
+  Switch,
 } from 'react-native';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
@@ -44,6 +45,7 @@ export default function AddExpenseScreen({ navigation }) {
   // Fixed Bill specific fields
   const [dueDate, setDueDate] = useState(new Date());
   const [showDuePicker, setShowDuePicker] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(true);
 
   // Loan EMI specific field: when the loan is fully repaid
   const [maturityDate, setMaturityDate] = useState(null);
@@ -55,8 +57,10 @@ export default function AddExpenseScreen({ navigation }) {
 
   const handleEntryTypeChange = (type) => {
     setEntryType(type);
-    setCategory(type === 'expense' ? EXPENSE_CATEGORIES[0] : FIXED_BILL_CATEGORIES[0]);
+    const defaultCategory = type === 'expense' ? EXPENSE_CATEGORIES[0] : FIXED_BILL_CATEGORIES[0];
+    setCategory(defaultCategory);
     setMaturityDate(null);
+    setIsRecurring(defaultCategory !== 'Other Bill');
   };
 
   const handleCategoryChange = (cat) => {
@@ -64,6 +68,7 @@ export default function AddExpenseScreen({ navigation }) {
     if (cat !== 'Loan EMI') {
       setMaturityDate(null);
     }
+    setIsRecurring(cat !== 'Other Bill');
   };
 
   const handleDuePickerPress = () => {
@@ -152,6 +157,7 @@ export default function AddExpenseScreen({ navigation }) {
           dueDate: dueDate.toISOString().split('T')[0],
           maturityDate: isLoanEmi ? maturityDate.toISOString().split('T')[0] : null,
           isPaid: false,
+          isRecurring,
           notes: notes.trim(),
           createdAt: serverTimestamp(),
         });
@@ -164,6 +170,7 @@ export default function AddExpenseScreen({ navigation }) {
       setNotes('');
       setDueDate(new Date());
       setMaturityDate(null);
+      setIsRecurring(true);
       navigation.navigate('Dashboard');
     } catch (error) {
       Alert.alert('Error', 'Failed to save record: ' + error.message);
@@ -253,6 +260,23 @@ export default function AddExpenseScreen({ navigation }) {
               onChange={handleDueDateChange}
             />
           )}
+        </View>
+      )}
+
+      {entryType === 'bill' && (
+        <View style={[styles.formGroup, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+          <View style={{ flex: 1, marginRight: 12 }}>
+            <Text style={styles.label}>Recurring Monthly Bill</Text>
+            <Text style={[styles.dateButtonPlaceholder, { fontSize: 12 }]}>
+              Automatically rolls the due date to next month once paid.
+            </Text>
+          </View>
+          <Switch
+            value={isRecurring}
+            onValueChange={setIsRecurring}
+            trackColor={{ false: colors.border, true: colors.accent }}
+            thumbColor="#FFFFFF"
+          />
         </View>
       )}
 

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, Switch, Alert } from 'react-native';
 import { signOut } from 'firebase/auth';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { Ionicons } from '@expo/vector-icons';
 import { auth, db } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
+import { useData } from '../context/DataContext';
 import { getProfileStyles } from '../styles/profileStyles';
 import {
   areNotificationsAvailable,
@@ -15,6 +16,7 @@ import {
 export default function ProfileScreen() {
   const { theme, toggleTheme, colors } = useTheme();
   const styles = getProfileStyles(theme);
+  const { monthlyIncome } = useData();
 
   const currentUser = auth.currentUser;
   const displayName = currentUser?.displayName || 'User';
@@ -24,7 +26,6 @@ export default function ProfileScreen() {
   const notificationsAvailable = areNotificationsAvailable();
   const [weeklyReminder, setWeeklyReminder] = useState(true);
 
-  const [monthlyIncome, setMonthlyIncome] = useState(0);
   const [isEditingIncome, setIsEditingIncome] = useState(false);
   const [incomeInput, setIncomeInput] = useState('');
   const [savingIncome, setSavingIncome] = useState(false);
@@ -32,17 +33,6 @@ export default function ProfileScreen() {
   useEffect(() => {
     isWeeklyReminderEnabled().then(setWeeklyReminder);
   }, []);
-
-  useEffect(() => {
-    if (!currentUser) return;
-
-    const unsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (snapshot) => {
-      const value = Number(snapshot.data()?.monthlyIncome);
-      setMonthlyIncome(Number.isFinite(value) ? value : 0);
-    });
-
-    return unsubscribe;
-  }, [currentUser]);
 
   const handleToggleReminder = async (value) => {
     setWeeklyReminder(value);

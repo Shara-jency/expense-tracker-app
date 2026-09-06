@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, ScrollView, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PieChart, BarChart } from 'react-native-chart-kit';
-import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
-import { db, auth } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
+import { useData } from '../context/DataContext';
 import { getAnalyticsStyles } from '../styles/analyticsStyles';
 import BudgetProgressBar from '../components/BudgetProgressBar';
 import LeakCard from '../components/LeakCard';
@@ -26,54 +25,15 @@ const BUDGET_CAPS = {
 export default function AnalyticsScreen() {
   const { theme, colors } = useTheme();
   const styles = getAnalyticsStyles(theme);
+  const { expenses, bills: mandatory, monthlyIncome, loading } = useData();
 
-  const [expenses, setExpenses] = useState([]);
-  const [mandatory, setMandatory] = useState([]);
-  const [categorySpends, setCategorySpends] = useState({});
-  const [leaks, setLeaks] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [monthlyIncome, setMonthlyIncome] = useState(0);
+  const categorySpends = {};
+  expenses.forEach((item) => {
+    const cat = item.category || 'Other';
+    categorySpends[cat] = (categorySpends[cat] || 0) + (Number(item.amount) || 0);
+  });
 
-  useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    // Listen for the user's saved monthly income (set from Profile & Settings)
-    const unsubIncome = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
-      const value = Number(snapshot.data()?.monthlyIncome);
-      setMonthlyIncome(Number.isFinite(value) ? value : 0);
-    });
-
-    // Query Discretionary Expenses
-    const qExp = query(collection(db, 'expenses'), where('userId', '==', user.uid));
-    const unsubExp = onSnapshot(qExp, (snapshot) => {
-      const expList = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-
-      const catMap = {};
-      expList.forEach((item) => {
-        const cat = item.category || 'Other';
-        catMap[cat] = (catMap[cat] || 0) + (Number(item.amount) || 0);
-      });
-
-      setExpenses(expList);
-      setCategorySpends(catMap);
-      setLeaks(detectFinancialLeaks(expList));
-      setLoading(false);
-    });
-
-    // Query Fixed Obligations
-    const qMandatory = query(collection(db, 'mandatory_expenses'), where('userId', '==', user.uid));
-    const unsubMandatory = onSnapshot(qMandatory, (snapshot) => {
-      const mandList = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setMandatory(mandList);
-    });
-
-    return () => {
-      unsubIncome();
-      unsubExp();
-      unsubMandatory();
-    };
-  }, []);
+  const leaks = detectFinancialLeaks(expenses);
 
   const processed = processAnalyticsData(expenses, mandatory, monthlyIncome);
 

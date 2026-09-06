@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,18 +10,10 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  doc,
-  updateDoc,
-  deleteDoc,
-} from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
+import { useData } from '../context/DataContext';
 import { getDashboardStyles } from '../styles/dashboardStyles';
 import MandatoryCard from '../components/MandatoryCard';
 import EditExpenseModal from '../components/EditExpenseModal';
@@ -29,13 +21,7 @@ import EditLiabilityModal from '../components/EditLiabilityModal';
 import GlobalFAB from '../components/GlobalFAB';
 import InlineLoader from '../components/InlineLoader';
 import { exportExpensesToCSV } from '../services/exportService';
-import {
-  requestNotificationPermissions,
-  scheduleBillReminder,
-  cancelBillReminder,
-  scheduleWeeklyLoggingReminder,
-  isWeeklyReminderEnabled,
-} from '../services/notificationService';
+import { cancelBillReminder } from '../services/notificationService';
 import { getLiabilityStatus, summarizeLiabilities } from '../services/liabilityService';
 import { EXPENSE_CATEGORIES } from '../constants/categories';
 
@@ -64,10 +50,7 @@ const CATEGORY_COLORS = {
 export default function DashboardScreen({ navigation }) {
   const { theme, colors } = useTheme();
   const styles = getDashboardStyles(theme);
-
-  const [expenses, setExpenses] = useState([]);
-  const [bills, setBills] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { expenses, bills, loading, visibleExpenseCount, hasMoreExpenses, showMoreExpenses } = useData();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -83,71 +66,25 @@ export default function DashboardScreen({ navigation }) {
   const user = auth.currentUser;
   const userName = user?.displayName || user?.email?.split('@')[0] || 'User';
 
-  useEffect(() => {
-    if (!user) return;
-
-    // Schedule the weekly expense logging check-in (Saturdays at 9 AM),
-    // unless the user has turned it off from Profile & Settings.
-    isWeeklyReminderEnabled().then((enabled) => {
-      if (!enabled) return;
-      requestNotificationPermissions().then((granted) => {
-        if (granted) {
-          scheduleWeeklyLoggingReminder(7, 9, 0); // Day 7 = Saturday, 9:00 AM
-        }
-      });
-    });
-
-    // 1. Listen for regular expenses
-    const expensesQuery = query(
-      collection(db, 'expenses'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsubscribeExpenses = onSnapshot(expensesQuery, (snapshot) => {
-      const expList = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
-      setExpenses(expList);
-      setLoading(false);
-    });
-
-    // 2. Listen for mandatory bills & schedule reminders for unpaid ones
-    const billsQuery = query(
-      collection(db, 'mandatory_expenses'),
-      where('userId', '==', user.uid),
-      orderBy('dueDate', 'asc')
-    );
-
-    const unsubscribeBills = onSnapshot(billsQuery, (snapshot) => {
-      const billList = snapshot.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      }));
-      setBills(billList);
-
-      // Schedule notification reminders for pending bills,
-      // and cancel any reminder for bills that are now paid.
-      billList.forEach((bill) => {
-        if (!bill.isPaid && bill.dueDate) {
-          scheduleBillReminder(bill.id, bill.title, bill.amount, bill.dueDate);
-        } else if (bill.isPaid) {
-          cancelBillReminder(bill.id);
-        }
-      });
-    });
-
-    return () => {
-      unsubscribeExpenses();
-      unsubscribeBills();
-    };
-  }, [user]);
-
-  const toggleBillPaidStatus = async (billId, currentStatus) => {
+  const toggleBillPaidStatus = async (bill) => {
     try {
-      const billRef = doc(db, 'mandatory_expenses', billId);
-      await updateDoc(billRef, { isPaid: !currentStatus });
+      const billRef = doc(db, 'mandatory_expenses', bill.id);
+      const nowPaid = !bill.isPaid;
+
+      if (nowPaid && bill.isRecurring && bill.dueDate) {
+        // Recurring bill just paid: roll the same document forward to next
+        // month's cycle instead of leaving it marked paid indefinitely.
+        const nextDue = new Date(bill.dueDate);
+        nextDue.setMonth(nextDue.getMonth() + 1);
+
+        await updateDoc(billRef, {
+          isPaid: false,
+          dueDate: nextDue.toISOString().split('T')[0],
+          lastPaidDate: new Date().toISOString().split('T')[0],
+        });
+      } else {
+        await updateDoc(billRef, { isPaid: nowPaid });
+      }
     } catch (e) {
       console.error('Error toggling status:', e);
     }
@@ -207,7 +144,9 @@ export default function DashboardScreen({ navigation }) {
       isPaid={bill.isPaid}
       category={bill.category}
       maturityDate={bill.maturityDate}
-      onTogglePaid={() => toggleBillPaidStatus(bill.id, bill.isPaid)}
+      isRecurring={bill.isRecurring}
+      lastPaidDate={bill.lastPaidDate}
+      onTogglePaid={() => toggleBillPaidStatus(bill)}
       onEdit={() => handleEditBill(bill)}
       onDelete={() => handleDeleteBill(bill.id, bill.title)}
       theme={theme}
@@ -219,6 +158,11 @@ export default function DashboardScreen({ navigation }) {
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
+
+  const isFiltering = Boolean(searchQuery) || selectedCategory !== 'All';
+  const visibleExpenses = isFiltering
+    ? filteredExpenses
+    : filteredExpenses.slice(0, visibleExpenseCount);
 
   const totalSpent = expenses.reduce((sum, item) => sum + (item.amount || 0), 0);
 
@@ -403,14 +347,14 @@ export default function DashboardScreen({ navigation }) {
         {/* Recent Expenses List */}
         <View style={styles.recentHeader}>
           <Text style={styles.sectionTitle}>
-            {searchQuery || selectedCategory !== 'All' ? 'Filtered Expenses' : 'Recent Expenses'}
+            {isFiltering ? 'Filtered Expenses' : 'Recent Expenses'}
           </Text>
         </View>
 
         {filteredExpenses.length === 0 ? (
           <Text style={styles.emptyText}>No matching expenses found.</Text>
         ) : (
-          filteredExpenses.map((item) => {
+          visibleExpenses.map((item) => {
             const categoryColor = CATEGORY_COLORS[item.category] || CATEGORY_COLORS.Other;
             const categoryIcon = CATEGORY_ICONS[item.category] || CATEGORY_ICONS.Other;
 
@@ -456,6 +400,12 @@ export default function DashboardScreen({ navigation }) {
               </View>
             );
           })
+        )}
+
+        {!isFiltering && hasMoreExpenses && (
+          <TouchableOpacity style={styles.loadMoreButton} onPress={showMoreExpenses}>
+            <Text style={styles.loadMoreText}>Load more expenses</Text>
+          </TouchableOpacity>
         )}
 
         {/* Edit Modals */}

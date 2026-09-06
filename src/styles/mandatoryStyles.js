@@ -51,6 +51,19 @@ export const getMandatoryStyles = (themeMode = 'dark') => {
       color: currentColors.accent,
       marginTop: 2,
     },
+    recurringBadge: {
+      width: 16,
+      height: 16,
+      borderRadius: borderRadius.xs,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: `${currentColors.accent}26`,
+    },
+    lastPaidText: {
+      fontSize: 11,
+      color: currentColors.textSecondary,
+      marginTop: 2,
+    },
     footerRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',

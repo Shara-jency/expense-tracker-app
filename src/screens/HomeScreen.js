@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
+import { auth } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
+import { useData } from '../context/DataContext';
 import { getHomeStyles } from '../styles/homeStyles';
 import InlineLoader from '../components/InlineLoader';
 import { summarizeLiabilities } from '../services/liabilityService';
@@ -12,33 +12,10 @@ import { detectFinancialLeaks } from '../services/leakDetector';
 export default function HomeScreen({ navigation }) {
   const { theme, colors } = useTheme();
   const styles = getHomeStyles(theme);
-
-  const [expenses, setExpenses] = useState([]);
-  const [bills, setBills] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { expenses, bills, loading } = useData();
 
   const user = auth.currentUser;
   const userName = user?.displayName || user?.email?.split('@')[0] || 'there';
-
-  useEffect(() => {
-    if (!user) return;
-
-    const expensesQuery = query(collection(db, 'expenses'), where('userId', '==', user.uid));
-    const unsubExpenses = onSnapshot(expensesQuery, (snapshot) => {
-      setExpenses(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-      setLoading(false);
-    });
-
-    const billsQuery = query(collection(db, 'mandatory_expenses'), where('userId', '==', user.uid));
-    const unsubBills = onSnapshot(billsQuery, (snapshot) => {
-      setBills(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
-    });
-
-    return () => {
-      unsubExpenses();
-      unsubBills();
-    };
-  }, [user]);
 
   if (loading) {
     return (

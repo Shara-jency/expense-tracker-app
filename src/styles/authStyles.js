@@ -40,6 +40,15 @@ export const getAuthStyles = (themeMode = 'dark') => {
       color: currentColors.textPrimary,
       borderColor: currentColors.border,
     },
+    authForgotButton: {
+      alignSelf: 'flex-end',
+      marginBottom: spacing.sm,
+    },
+    authForgotText: {
+      color: currentColors.accent,
+      fontSize: 13,
+      fontWeight: '600',
+    },
     authButton: {
       height: 50,
       borderRadius: borderRadius.md,

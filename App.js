@@ -15,6 +15,7 @@ import {
   ThemeProvider,
   useTheme,
 } from './src/context/ThemeContext';
+import { DataProvider } from './src/context/DataContext';
 
 // Notification service
 import {
@@ -319,9 +320,11 @@ function MainApp() {
       {!user ? (
         <AuthScreen />
       ) : (
-        <NavigationContainer>
-          <AppTabs />
-        </NavigationContainer>
+        <DataProvider uid={user.uid}>
+          <NavigationContainer>
+            <AppTabs />
+          </NavigationContainer>
+        </DataProvider>
       )}
     </SafeAreaView>
   );
