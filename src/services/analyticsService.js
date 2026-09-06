@@ -1,13 +1,23 @@
 /**
+ * A Loan EMI whose maturity date has passed is fully repaid and should no
+ * longer count as an ongoing fixed obligation.
+ */
+const isMaturedLoan = (bill) =>
+  bill.category === 'Loan EMI' &&
+  !!bill.maturityDate &&
+  bill.maturityDate < new Date().toISOString().split('T')[0];
+
+/**
  * Processes raw expenses and mandatory liabilities into monthly trend data
  * and commitment ratio figures.
  */
-export const processAnalyticsData = (expenses = [], mandatoryExpenses = [], monthlyIncome = 50000) => {
+export const processAnalyticsData = (expenses = [], mandatoryExpenses = [], monthlyIncome = 0) => {
   let totalFixed = 0;
   let totalDiscretionary = 0;
 
-  // 1. Calculate Fixed Obligations
+  // 1. Calculate Fixed Obligations (excluding loans that have already matured)
   mandatoryExpenses.forEach((bill) => {
+    if (isMaturedLoan(bill)) return;
     totalFixed += Number(bill.amount) || 0;
   });
 
@@ -57,4 +67,39 @@ export const processAnalyticsData = (expenses = [], mandatoryExpenses = [], mont
       ],
     },
   };
+};
+
+/**
+ * Builds a payoff summary for every Loan EMI liability that has a
+ * maturity/end date set, sorted by soonest-to-finish first.
+ */
+export const getActiveLoanSummaries = (mandatoryExpenses = []) => {
+  const now = new Date();
+
+  return mandatoryExpenses
+    .filter((bill) => bill.category === 'Loan EMI' && bill.maturityDate)
+    .map((bill) => {
+      const maturity = new Date(bill.maturityDate);
+      const monthlyAmount = Number(bill.amount) || 0;
+      const isMatured = maturity <= now;
+
+      const monthsRemaining = isMatured
+        ? 0
+        : Math.max(
+            0,
+            (maturity.getFullYear() - now.getFullYear()) * 12 +
+              (maturity.getMonth() - now.getMonth())
+          );
+
+      return {
+        id: bill.id,
+        title: bill.title,
+        monthlyAmount,
+        maturityDate: bill.maturityDate,
+        monthsRemaining,
+        isMatured,
+        projectedRemainingPayout: monthlyAmount * monthsRemaining,
+      };
+    })
+    .sort((a, b) => a.monthsRemaining - b.monthsRemaining);
 };

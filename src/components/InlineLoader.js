@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, ActivityIndicator, Text, StyleSheet } from 'react-native';
 
-export default function InlineLoader({ text }) {
+export default function InlineLoader({ text, size = 'small', color = '#3B82F6', textColor = '#94A3B8' }) {
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="small" color="#3B82F6" />
-      {text && <Text style={styles.text}>{text}</Text>}
+      <ActivityIndicator size={size} color={color} />
+      {text && <Text style={[styles.text, { color: textColor }]}>{text}</Text>}
     </View>
   );
 }
@@ -19,7 +19,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   text: {
-    color: '#94A3B8',
     fontSize: 13,
   },
 });

@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
-import { TouchableOpacity, Text, StyleSheet, Animated } from 'react-native';
+import { TouchableOpacity, StyleSheet, Animated } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import QuickAddModal from './QuickAddModal';
+import { colors } from '../styles/theme';
 
 /**
  * Floating Action Button for triggering Quick Expense Entry anywhere across the app.
- * 
+ *
  * @param {Object} props
  * @param {'dark' | 'light'} [props.theme='dark'] - Current app theme
  * @param {import('react-native').ViewStyle} [props.style] - Custom container/position overrides
  * @param {Function} [props.onExpenseAdded] - Optional callback triggered after a new expense is logged
  */
 export default function GlobalFAB({ theme = 'dark', style, onExpenseAdded }) {
+  const currentColors = colors[theme] || colors.dark;
+
   const [modalVisible, setModalVisible] = useState(false);
   const [scaleValue] = useState(new Animated.Value(1));
 
@@ -34,7 +38,7 @@ export default function GlobalFAB({ theme = 'dark', style, onExpenseAdded }) {
     <>
       <Animated.View style={[{ transform: [{ scale: scaleValue }] }, styles.fabWrapper, style]}>
         <TouchableOpacity
-          style={styles.fab}
+          style={[styles.fab, { backgroundColor: currentColors.accent }]}
           activeOpacity={0.85}
           onPress={() => setModalVisible(true)}
           onPressIn={handlePressIn}
@@ -43,7 +47,7 @@ export default function GlobalFAB({ theme = 'dark', style, onExpenseAdded }) {
           accessibilityLabel="Quick Add Expense"
           accessibilityHint="Opens a modal to quickly log a new expense or receipt"
         >
-          <Text style={styles.fabIcon}>+</Text>
+          <Ionicons name="add" size={30} color="#FFFFFF" />
         </TouchableOpacity>
       </Animated.View>
 
@@ -70,7 +74,6 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#3B82F6',
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 8,
@@ -78,11 +81,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
-  },
-  fabIcon: {
-    color: '#FFFFFF',
-    fontSize: 32,
-    fontWeight: '300',
-    marginTop: -2,
   },
 });

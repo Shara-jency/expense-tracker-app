@@ -16,6 +16,9 @@ export const getAddExpenseStyles = (themeMode = 'dark') => {
       color: currentColors.textPrimary,
       marginVertical: spacing.md,
     },
+    formGroup: {
+      marginBottom: spacing.md,
+    },
     label: {
       fontSize: 14,
       fontWeight: '600',
@@ -33,10 +36,40 @@ export const getAddExpenseStyles = (themeMode = 'dark') => {
       color: currentColors.textPrimary,
       borderColor: currentColors.border,
     },
-    categoryContainer: {
+    dateButton: {
+      height: 50,
+      borderWidth: 1,
+      borderRadius: borderRadius.md,
+      paddingHorizontal: spacing.md,
+      backgroundColor: currentColors.cardBackground,
+      borderColor: currentColors.border,
       flexDirection: 'row',
-      flexWrap: 'wrap',
-      marginVertical: spacing.xs,
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    dateButtonText: {
+      fontSize: 16,
+      color: currentColors.textPrimary,
+    },
+    dateButtonPlaceholder: {
+      fontSize: 16,
+      color: currentColors.textSecondary,
+    },
+    loanInfoBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: currentColors.cardBackground,
+      borderRadius: borderRadius.sm,
+      borderWidth: 1,
+      borderColor: currentColors.accent,
+      padding: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    loanInfoText: {
+      fontSize: 12,
+      color: currentColors.textSecondary,
+      flex: 1,
+      lineHeight: 16,
     },
     categoryChip: {
       paddingHorizontal: spacing.md,
@@ -59,27 +92,6 @@ export const getAddExpenseStyles = (themeMode = 'dark') => {
     selectedCategoryChipText: {
       color: '#FFFFFF',
       fontWeight: 'bold',
-    },
-    switchContainer: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginVertical: spacing.md,
-      padding: spacing.md,
-      backgroundColor: currentColors.cardBackground,
-      borderRadius: borderRadius.md,
-      borderWidth: 1,
-      borderColor: currentColors.border,
-    },
-    switchLabel: {
-      fontSize: 15,
-      fontWeight: '600',
-      color: currentColors.textPrimary,
-    },
-    switchSublabel: {
-      fontSize: 12,
-      color: currentColors.danger,
-      marginTop: 2,
     },
     submitButton: {
       height: 50,

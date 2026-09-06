@@ -18,10 +18,10 @@ export const detectFinancialLeaks = (expenses = []) => {
     const itemDate = item.createdAt?.toDate ? item.createdAt.toDate() : new Date(item.createdAt || Date.now());
     if (itemDate < thirtyDaysAgo) return;
 
-    const key = item.title.trim().toLowerCase();
+    const key = (item.title || 'Expense').trim().toLowerCase();
     if (!frequencyMap[key]) {
       frequencyMap[key] = {
-        originalTitle: item.title,
+        originalTitle: item.title || 'Expense',
         count: 0,
         totalSpent: 0,
         category: item.category,

@@ -1,5 +1,15 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  KeyboardAvoidingView,
+  ScrollView,
+} from 'react-native';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
@@ -40,7 +50,14 @@ export default function AuthScreen() {
   };
 
   return (
-    <View style={styles.authContainer}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={[styles.authContainer, { flexGrow: 1 }]}
+        keyboardShouldPersistTaps="handled"
+      >
       <View style={styles.authHeaderContainer}>
         <Text style={styles.authTitle}>SpendLens</Text>
         <Text style={styles.authSubtitle}>
@@ -100,6 +117,7 @@ export default function AuthScreen() {
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

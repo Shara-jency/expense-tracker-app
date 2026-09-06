@@ -60,6 +60,33 @@ export const getProfileStyles = (themeMode = 'dark') => {
       color: currentColors.textPrimary,
       fontWeight: '500',
     },
+    settingSubtext: {
+      fontSize: 12,
+      color: currentColors.textSecondary,
+      marginTop: 2,
+    },
+    incomeEditRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      marginTop: spacing.sm,
+    },
+    incomeInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderRadius: borderRadius.sm,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 6,
+      fontSize: 15,
+    },
+    iconButton: {
+      width: 30,
+      height: 30,
+      borderRadius: borderRadius.sm,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: currentColors.background,
+    },
     logoutButton: {
       backgroundColor: currentColors.dangerLight,
       borderRadius: borderRadius.md,

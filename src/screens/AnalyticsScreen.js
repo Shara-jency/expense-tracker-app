@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Dimensions } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { PieChart, BarChart } from 'react-native-chart-kit';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import { useTheme } from '../context/ThemeContext';
 import { getAnalyticsStyles } from '../styles/analyticsStyles';
 import BudgetProgressBar from '../components/BudgetProgressBar';
 import LeakCard from '../components/LeakCard';
+import LoanProgressCard from '../components/LoanProgressCard';
+import InlineLoader from '../components/InlineLoader';
 import { detectFinancialLeaks } from '../services/leakDetector';
-import { processAnalyticsData } from '../services/analyticsService';
+import { processAnalyticsData, getActiveLoanSummaries } from '../services/analyticsService';
 
 const screenWidth = Dimensions.get('window').width - 32;
 
@@ -29,10 +32,17 @@ export default function AnalyticsScreen() {
   const [categorySpends, setCategorySpends] = useState({});
   const [leaks, setLeaks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [monthlyIncome, setMonthlyIncome] = useState(0);
 
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
+
+    // Listen for the user's saved monthly income (set from Profile & Settings)
+    const unsubIncome = onSnapshot(doc(db, 'users', user.uid), (snapshot) => {
+      const value = Number(snapshot.data()?.monthlyIncome);
+      setMonthlyIncome(Number.isFinite(value) ? value : 0);
+    });
 
     // Query Discretionary Expenses
     const qExp = query(collection(db, 'expenses'), where('userId', '==', user.uid));
@@ -59,12 +69,22 @@ export default function AnalyticsScreen() {
     });
 
     return () => {
+      unsubIncome();
       unsubExp();
       unsubMandatory();
     };
   }, []);
 
-  const processed = processAnalyticsData(expenses, mandatory, 60000); // 60,000 assumed income base
+  const processed = processAnalyticsData(expenses, mandatory, monthlyIncome);
+
+  const loanSummaries = getActiveLoanSummaries(mandatory);
+  const activeLoans = loanSummaries.filter((loan) => !loan.isMatured);
+  const totalMonthlyEMI = activeLoans.reduce((sum, loan) => sum + loan.monthlyAmount, 0);
+  const totalRemainingDebt = activeLoans.reduce((sum, loan) => sum + loan.projectedRemainingPayout, 0);
+
+  const totalYearlyLeak = leaks.reduce((sum, leak) => sum + leak.projectedYearlyLeak, 0);
+
+  const hasIncome = monthlyIncome > 0;
 
   const pieData = [
     {
@@ -81,13 +101,17 @@ export default function AnalyticsScreen() {
       legendFontColor: colors.textPrimary,
       legendFontSize: 11,
     },
-    {
-      name: 'Unspent / Buffer',
-      population: processed.remainingIncome,
-      color: '#10B981', // Green
-      legendFontColor: colors.textPrimary,
-      legendFontSize: 11,
-    },
+    ...(hasIncome
+      ? [
+          {
+            name: 'Unspent / Buffer',
+            population: processed.remainingIncome,
+            color: '#10B981', // Green
+            legendFontColor: colors.textPrimary,
+            legendFontSize: 11,
+          },
+        ]
+      : []),
   ];
 
   const chartConfig = {
@@ -102,7 +126,12 @@ export default function AnalyticsScreen() {
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center' }]}>
-        <ActivityIndicator size="large" color={colors.accent} />
+        <InlineLoader
+          size="large"
+          color={colors.accent}
+          textColor={colors.textSecondary}
+          text="Crunching your analytics..."
+        />
       </View>
     );
   }
@@ -126,6 +155,15 @@ export default function AnalyticsScreen() {
         />
       </View>
 
+      {!hasIncome && (
+        <View style={styles.incomeBanner}>
+          <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
+          <Text style={styles.incomeBannerText}>
+            Set your monthly income in Profile & Settings to see your unspent buffer here.
+          </Text>
+        </View>
+      )}
+
       {/* 2. Monthly Spending Trend Bar Chart */}
       <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Monthly Discretionary Trend</Text>
       <View style={styles.chartCard}>
@@ -145,15 +183,58 @@ export default function AnalyticsScreen() {
       <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Detected Leaks & Habit Drains</Text>
       {leaks.length === 0 ? (
         <View style={styles.chartCard}>
-          <Text style={{ color: colors.textSecondary, textAlign: 'center' }}>
+          <Text style={styles.emptyText}>
             🎉 Great discipline! No recurring spending leaks detected in the last 30 days.
           </Text>
         </View>
       ) : (
-        leaks.map((leak, idx) => <LeakCard key={idx} leak={leak} theme={theme} />)
+        <>
+          <View style={styles.leakSummaryContainer}>
+            <View style={styles.leakSummaryHeader}>
+              <Text style={styles.leakSummaryTitle}>Total Projected Yearly Drain</Text>
+              <Text style={styles.leakTotalText}>
+                ₹{Math.round(totalYearlyLeak).toLocaleString('en-IN')}
+              </Text>
+            </View>
+            <Text style={styles.leakDescription}>
+              {leaks.length} recurring habit{leaks.length === 1 ? '' : 's'} detected in the last 30 days.
+            </Text>
+          </View>
+
+          {leaks.map((leak, idx) => <LeakCard key={idx} leak={leak} theme={theme} />)}
+        </>
       )}
 
-      {/* 4. Budget Caps Progress Bars */}
+      {/* 4. Active Loans & EMI Tracker */}
+      <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Active Loans & EMIs</Text>
+      {loanSummaries.length === 0 ? (
+        <View style={styles.chartCard}>
+          <Text style={styles.emptyText}>
+            No loan EMIs tracked yet. Add one from "Fixed Bill / Debt" and set its maturity date.
+          </Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.loanSummaryContainer}>
+            <View style={styles.leakSummaryHeader}>
+              <Text style={styles.loanSummaryTitle}>Total Remaining Debt</Text>
+              <Text style={styles.leakTotalText}>
+                ₹{Math.round(totalRemainingDebt).toLocaleString('en-IN')}
+              </Text>
+            </View>
+            <Text style={styles.leakDescription}>
+              ₹{totalMonthlyEMI.toLocaleString('en-IN')}/month across {activeLoans.length} active loan
+              {activeLoans.length === 1 ? '' : 's'}.
+            </Text>
+          </View>
+
+          {loanSummaries.map((loan) => (
+            <LoanProgressCard key={loan.id} loan={loan} theme={theme} />
+          ))}
+        </>
+      )}
+
+      {/* 5. Budget Caps Progress Bars */}
       <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Category Budget Limits</Text>
       {Object.keys(BUDGET_CAPS).map((category) => {
         const spent = categorySpends[category] || 0;

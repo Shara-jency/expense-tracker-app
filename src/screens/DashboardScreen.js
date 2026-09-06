@@ -4,12 +4,12 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   TextInput,
   Alert,
   Image,
   StyleSheet,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   collection,
   query,
@@ -26,14 +26,38 @@ import { getDashboardStyles } from '../styles/dashboardStyles';
 import MandatoryCard from '../components/MandatoryCard';
 import EditExpenseModal from '../components/EditExpenseModal';
 import GlobalFAB from '../components/GlobalFAB';
+import InlineLoader from '../components/InlineLoader';
 import { exportExpensesToCSV } from '../services/exportService';
 import {
   requestNotificationPermissions,
   scheduleBillReminder,
+  cancelBillReminder,
   scheduleWeeklyLoggingReminder,
+  isWeeklyReminderEnabled,
 } from '../services/notificationService';
+import { EXPENSE_CATEGORIES } from '../constants/categories';
 
-const CATEGORIES = ['All', 'Food & Dining', 'Shopping', 'Entertainment', 'Transport', 'Groceries', 'Bills'];
+const CATEGORIES = ['All', ...EXPENSE_CATEGORIES];
+
+const CATEGORY_ICONS = {
+  'Food & Dining': 'restaurant-outline',
+  'Shopping': 'bag-handle-outline',
+  'Entertainment': 'film-outline',
+  'Transport': 'car-outline',
+  'Subscriptions': 'repeat-outline',
+  'Groceries': 'cart-outline',
+  'Other': 'ellipsis-horizontal-outline',
+};
+
+const CATEGORY_COLORS = {
+  'Food & Dining': '#F59E0B',
+  'Shopping': '#EC4899',
+  'Entertainment': '#8B5CF6',
+  'Transport': '#0EA5E9',
+  'Subscriptions': '#6366F1',
+  'Groceries': '#10B981',
+  'Other': '#6B7280',
+};
 
 export default function DashboardScreen({ navigation }) {
   const { theme, colors } = useTheme();
@@ -55,11 +79,15 @@ export default function DashboardScreen({ navigation }) {
   useEffect(() => {
     if (!user) return;
 
-    // Request notification access & schedule weekly expense logging check-in (Saturdays at 9 AM)
-    requestNotificationPermissions().then((granted) => {
-      if (granted) {
-        scheduleWeeklyLoggingReminder(7, 9, 0); // Day 7 = Saturday, 9:00 AM
-      }
+    // Schedule the weekly expense logging check-in (Saturdays at 9 AM),
+    // unless the user has turned it off from Profile & Settings.
+    isWeeklyReminderEnabled().then((enabled) => {
+      if (!enabled) return;
+      requestNotificationPermissions().then((granted) => {
+        if (granted) {
+          scheduleWeeklyLoggingReminder(7, 9, 0); // Day 7 = Saturday, 9:00 AM
+        }
+      });
     });
 
     // 1. Listen for regular expenses
@@ -92,10 +120,13 @@ export default function DashboardScreen({ navigation }) {
       }));
       setBills(billList);
 
-      // Schedule notification reminders for pending bills
+      // Schedule notification reminders for pending bills,
+      // and cancel any reminder for bills that are now paid.
       billList.forEach((bill) => {
         if (!bill.isPaid && bill.dueDate) {
-          scheduleBillReminder(bill.title, bill.amount, bill.dueDate);
+          scheduleBillReminder(bill.id, bill.title, bill.amount, bill.dueDate);
+        } else if (bill.isPaid) {
+          cancelBillReminder(bill.id);
         }
       });
     });
@@ -157,7 +188,12 @@ export default function DashboardScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.accent} />
+        <InlineLoader
+          size="large"
+          color={colors.accent}
+          textColor={colors.textSecondary}
+          text="Loading your expenses..."
+        />
       </View>
     );
   }
@@ -173,30 +209,40 @@ export default function DashboardScreen({ navigation }) {
           </View>
 
           <TouchableOpacity style={localStyles.exportBtn} onPress={() => exportExpensesToCSV(expenses, bills)}>
-            <Text style={localStyles.exportBtnText}>📄 CSV</Text>
+            <Ionicons name="download-outline" size={14} color="#FFF" />
+            <Text style={localStyles.exportBtnText}>CSV</Text>
           </TouchableOpacity>
         </View>
 
         {/* Summary Cards */}
         <View style={{ flexDirection: 'row', gap: 10, marginVertical: 10 }}>
           <View style={[styles.summaryCard, { flex: 1 }]}>
+            <View style={[styles.summaryIconWrap, { backgroundColor: `${colors.accent}26` }]}>
+              <Ionicons name="wallet-outline" size={16} color={colors.accent} />
+            </View>
             <Text style={styles.summaryLabel}>Total Expenses</Text>
             <Text style={styles.summaryAmount}>₹{totalSpent.toFixed(2)}</Text>
           </View>
           <View style={[styles.summaryCard, { flex: 1, borderColor: '#F59E0B' }]}>
+            <View style={[styles.summaryIconWrap, { backgroundColor: '#F59E0B26' }]}>
+              <Ionicons name="calendar-outline" size={16} color="#F59E0B" />
+            </View>
             <Text style={styles.summaryLabel}>Pending Bills</Text>
             <Text style={[styles.summaryAmount, { color: '#F59E0B' }]}>₹{totalMandatory.toFixed(2)}</Text>
           </View>
         </View>
 
         {/* Search Bar */}
-        <TextInput
-          style={[localStyles.searchBar, { backgroundColor: colors.cardBackground, color: colors.textPrimary, borderColor: colors.border }]}
-          placeholder="🔍 Search expenses or merchants..."
-          placeholderTextColor={colors.textSecondary}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
+        <View style={localStyles.searchBarWrap}>
+          <Ionicons name="search-outline" size={16} color={colors.textSecondary} style={localStyles.searchIcon} />
+          <TextInput
+            style={[localStyles.searchBar, { backgroundColor: colors.cardBackground, color: colors.textPrimary, borderColor: colors.border }]}
+            placeholder="Search expenses or merchants..."
+            placeholderTextColor={colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
 
         {/* Category Filter Pills */}
         <View style={{ height: 40, marginBottom: 15 }}>
@@ -210,8 +256,8 @@ export default function DashboardScreen({ navigation }) {
                   style={[
                     localStyles.filterPill,
                     {
-                      backgroundColor: isSelected ? '#3B82F6' : colors.cardBackground,
-                      borderColor: colors.border,
+                      backgroundColor: isSelected ? colors.accent : colors.cardBackground,
+                      borderColor: isSelected ? colors.accent : colors.border,
                     },
                   ]}
                 >
@@ -235,6 +281,8 @@ export default function DashboardScreen({ navigation }) {
                 amount={bill.amount}
                 dueDate={bill.dueDate}
                 isPaid={bill.isPaid}
+                category={bill.category}
+                maturityDate={bill.maturityDate}
                 onTogglePaid={() => toggleBillPaidStatus(bill.id, bill.isPaid)}
                 theme={theme}
               />
@@ -252,32 +300,52 @@ export default function DashboardScreen({ navigation }) {
         {filteredExpenses.length === 0 ? (
           <Text style={styles.emptyText}>No matching expenses found.</Text>
         ) : (
-          filteredExpenses.map((item) => (
-            <View key={item.id} style={styles.expenseItem}>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={styles.expenseTitle}>{item.title}</Text>
-                  {item.receiptUri && (
-                    <Image source={{ uri: item.receiptUri }} style={localStyles.receiptThumb} />
-                  )}
+          filteredExpenses.map((item) => {
+            const categoryColor = CATEGORY_COLORS[item.category] || CATEGORY_COLORS.Other;
+            const categoryIcon = CATEGORY_ICONS[item.category] || CATEGORY_ICONS.Other;
+
+            return (
+              <View key={item.id} style={styles.expenseItem}>
+                <View style={[styles.categoryIconWrap, { backgroundColor: `${categoryColor}26` }]}>
+                  <Ionicons name={categoryIcon} size={18} color={categoryColor} />
                 </View>
-                <Text style={styles.expenseCategory}>
-                  {item.category || 'Other'} • {formatDate(item.expenseDate || item.createdAt)}
-                </Text>
-              </View>
 
-              <Text style={styles.expenseAmount}>-₹{(item.amount || 0).toFixed(2)}</Text>
+                <View style={styles.expenseDetails}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={styles.expenseTitle} numberOfLines={1}>{item.title}</Text>
+                    {item.receiptUri && (
+                      <Image source={{ uri: item.receiptUri }} style={localStyles.receiptThumb} />
+                    )}
+                  </View>
+                  <Text style={styles.expenseCategory} numberOfLines={1}>
+                    {item.category || 'Other'} • {formatDate(item.expenseDate || item.createdAt)}
+                  </Text>
+                </View>
 
-              <View style={{ flexDirection: 'row', gap: 8, marginLeft: 10 }}>
-                <TouchableOpacity onPress={() => handleEditExpense(item)} style={{ padding: 4 }}>
-                  <Text style={{ fontSize: 14 }}>✏️</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => handleDeleteExpense(item.id, item.title)} style={{ padding: 4 }}>
-                  <Text style={{ fontSize: 14 }}>🗑️</Text>
-                </TouchableOpacity>
+                <View style={styles.expenseRight}>
+                  <Text style={styles.expenseAmount}>-₹{(item.amount || 0).toFixed(2)}</Text>
+                  <View style={styles.expenseActions}>
+                    <TouchableOpacity
+                      onPress={() => handleEditExpense(item)}
+                      style={styles.iconButton}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      accessibilityLabel={`Edit ${item.title}`}
+                    >
+                      <Ionicons name="create-outline" size={15} color={colors.accent} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteExpense(item.id, item.title)}
+                      style={styles.iconButton}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      accessibilityLabel={`Delete ${item.title}`}
+                    >
+                      <Ionicons name="trash-outline" size={15} color={colors.danger} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
 
         {/* Edit Modal */}
@@ -297,6 +365,9 @@ export default function DashboardScreen({ navigation }) {
 
 const localStyles = StyleSheet.create({
   exportBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     backgroundColor: '#10B981',
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -307,10 +378,19 @@ const localStyles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 12,
   },
+  searchBarWrap: {
+    justifyContent: 'center',
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: 12,
+    zIndex: 1,
+  },
   searchBar: {
     borderWidth: 1,
     borderRadius: 8,
-    paddingHorizontal: 12,
+    paddingLeft: 36,
+    paddingRight: 12,
     paddingVertical: 10,
     marginBottom: 10,
     fontSize: 14,

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StatusBar, View, ActivityIndicator } from 'react-native';
+import { StatusBar, View } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -18,8 +18,12 @@ import {
 
 // Notification service
 import {
+  configureNotifications,
   requestNotificationPermissions,
 } from './src/services/notificationService';
+
+// Components
+import AppLoader from './src/components/AppLoader';
 
 // Screens
 import AuthScreen from './src/screens/AuthScreen';
@@ -166,6 +170,8 @@ function MainApp() {
   useEffect(() => {
     const initializeNotifications = async () => {
       try {
+        await configureNotifications();
+
         const granted =
           await requestNotificationPermissions();
 
@@ -202,21 +208,7 @@ function MainApp() {
    * Loading screen
    */
   if (initializing) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundColor: colors.background,
-        }}
-      >
-        <ActivityIndicator
-          size="large"
-          color={colors.accent}
-        />
-      </View>
-    );
+    return <AppLoader />;
   }
 
   /**

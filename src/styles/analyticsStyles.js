@@ -61,10 +61,40 @@ export const getAnalyticsStyles = (themeMode = 'dark') => {
       color: currentColors.textSecondary,
       marginTop: spacing.xs,
     },
+    loanSummaryContainer: {
+      backgroundColor: currentColors.cardBackground,
+      borderRadius: borderRadius.md,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: currentColors.accent,
+      marginVertical: spacing.sm,
+    },
+    loanSummaryTitle: {
+      fontSize: 16,
+      fontWeight: 'bold',
+      color: currentColors.accent,
+    },
     emptyText: {
       color: currentColors.textSecondary,
       textAlign: 'center',
       marginVertical: spacing.xl,
+    },
+    incomeBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: currentColors.cardBackground,
+      borderRadius: borderRadius.sm,
+      borderWidth: 1,
+      borderColor: currentColors.accent,
+      padding: spacing.sm,
+      marginTop: spacing.sm,
+      gap: spacing.xs,
+    },
+    incomeBannerText: {
+      fontSize: 12,
+      color: currentColors.textSecondary,
+      flex: 1,
+      lineHeight: 16,
     },
   });
 };

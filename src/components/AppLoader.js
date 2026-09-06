@@ -6,7 +6,7 @@ export default function AppLoader({ message = 'Loading SpendLens...' }) {
     <View style={styles.container}>
       {/* App Logo */}
       <Image
-        source={require('../assets/icon.png')}
+        source={require('../../assets/icon.png')}
         style={styles.logo}
         resizeMode="contain"
       />
@@ -23,7 +23,7 @@ export default function AppLoader({ message = 'Loading SpendLens...' }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#121218',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,

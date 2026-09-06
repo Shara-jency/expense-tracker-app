@@ -1,5 +1,8 @@
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const WEEKLY_REMINDER_PREF_KEY = '@spendlens/weekly_reminder_enabled';
 
 /**
  * Detect whether the app is running inside Expo Go.
@@ -197,14 +200,16 @@ export const requestNotificationPermissions = async () => {
  * Notification is scheduled one day before
  * the bill due date.
  *
+ * @param {string} billId
  * @param {string} billTitle
  * @param {number} amount
- * @param {number} dueDateDay
+ * @param {string} dueDateStr - Due date as a 'YYYY-MM-DD' string.
  */
 export const scheduleBillReminder = async (
+  billId,
   billTitle,
   amount,
-  dueDateDay
+  dueDateStr
 ) => {
   if (!notificationsAvailable) {
     console.log(
@@ -229,28 +234,40 @@ export const scheduleBillReminder = async (
       return;
     }
 
+    /**
+     * Due date is stored as a specific calendar date
+     * (e.g. "2026-09-06"), not a recurring day-of-month.
+     */
+    const dueDate = new Date(dueDateStr);
+
+    if (isNaN(dueDate.getTime())) {
+      console.warn(
+        `Skipping bill reminder: invalid due date "${dueDateStr}" for ${billTitle}`
+      );
+      return;
+    }
+
+    dueDate.setHours(9, 0, 0, 0);
+
     const now = new Date();
 
     /**
-     * Create due date at 9:00 AM.
+     * Remove any previously scheduled reminder for
+     * this bill so it isn't duplicated on every
+     * Firestore snapshot update.
      */
-    let dueDate = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      dueDateDay,
-      9,
-      0,
-      0
-    );
+    const scheduled =
+      await Notifications.getAllScheduledNotificationsAsync();
 
-    /**
-     * If due date already passed,
-     * schedule for next month.
-     */
-    if (dueDate <= now) {
-      dueDate.setMonth(
-        dueDate.getMonth() + 1
-      );
+    for (const item of scheduled) {
+      if (
+        item.content.data?.type === 'BILL_REMINDER' &&
+        item.content.data?.billId === billId
+      ) {
+        await Notifications.cancelScheduledNotificationAsync(
+          item.identifier
+        );
+      }
     }
 
     /**
@@ -263,12 +280,10 @@ export const scheduleBillReminder = async (
     );
 
     /**
-     * Never schedule in the past.
+     * Bill's reminder window has already passed; nothing to schedule.
      */
     if (triggerDate <= now) {
-      triggerDate.setTime(
-        now.getTime() + 60 * 1000
-      );
+      return;
     }
 
     await Notifications.scheduleNotificationAsync({
@@ -286,6 +301,7 @@ export const scheduleBillReminder = async (
 
         data: {
           type: 'BILL_REMINDER',
+          billId,
           billTitle,
           amount,
         },
@@ -428,6 +444,46 @@ export const scheduleWeeklyLoggingReminder = async (
 
 
 /**
+ * Cancel a previously scheduled bill reminder.
+ *
+ * @param {string} billId
+ */
+export const cancelBillReminder = async (billId) => {
+  if (!notificationsAvailable) {
+    return;
+  }
+
+  try {
+    const Notifications =
+      await getNotifications();
+
+    if (!Notifications) {
+      return;
+    }
+
+    const scheduled =
+      await Notifications.getAllScheduledNotificationsAsync();
+
+    for (const item of scheduled) {
+      if (
+        item.content.data?.type === 'BILL_REMINDER' &&
+        item.content.data?.billId === billId
+      ) {
+        await Notifications.cancelScheduledNotificationAsync(
+          item.identifier
+        );
+      }
+    }
+  } catch (error) {
+    console.error(
+      'Failed to cancel bill reminder:',
+      error
+    );
+  }
+};
+
+
+/**
  * Cancel all weekly logging reminders.
  */
 export const cancelWeeklyLoggingReminder = async () => {
@@ -476,4 +532,43 @@ export const cancelWeeklyLoggingReminder = async () => {
  */
 export const areNotificationsAvailable = () => {
   return notificationsAvailable;
+};
+
+
+/**
+ * Read the user's saved preference for the weekly
+ * logging reminder. Defaults to enabled.
+ */
+export const isWeeklyReminderEnabled = async () => {
+  try {
+    const stored = await AsyncStorage.getItem(WEEKLY_REMINDER_PREF_KEY);
+    return stored === null ? true : stored === 'true';
+  } catch (error) {
+    console.warn('Failed to read weekly reminder preference:', error);
+    return true;
+  }
+};
+
+
+/**
+ * Persist the user's weekly reminder preference and
+ * immediately schedule or cancel the notification to match.
+ *
+ * @param {boolean} enabled
+ */
+export const setWeeklyReminderEnabled = async (enabled) => {
+  try {
+    await AsyncStorage.setItem(WEEKLY_REMINDER_PREF_KEY, String(enabled));
+  } catch (error) {
+    console.warn('Failed to persist weekly reminder preference:', error);
+  }
+
+  if (enabled) {
+    const granted = await requestNotificationPermissions();
+    if (granted) {
+      await scheduleWeeklyLoggingReminder(7, 9, 0);
+    }
+  } else {
+    await cancelWeeklyLoggingReminder();
+  }
 };

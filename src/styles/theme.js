@@ -14,7 +14,7 @@ export const colors = {
     cardBackground: '#1E1E2E',
     textPrimary: '#FFFFFF',
     textSecondary: '#A0A0B0',
-    border: '#2E2E3E',
+    border: '#34344A',
     danger: '#FF5555',
     dangerLight: '#3D1E28',
     accent: '#3B82F6',
@@ -30,6 +30,7 @@ export const spacing = {
 };
 
 export const borderRadius = {
+  xs: 4,
   sm: 6,
   md: 12,
   lg: 16,

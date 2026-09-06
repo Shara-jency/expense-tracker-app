@@ -30,6 +30,12 @@ export const getMandatoryStyles = (themeMode = 'dark') => {
       color: currentColors.textSecondary,
       marginTop: 2,
     },
+    maturityText: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: currentColors.accent,
+      marginTop: 2,
+    },
     amount: {
       fontSize: 16,
       fontWeight: 'bold',

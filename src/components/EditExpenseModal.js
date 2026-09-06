@@ -1,22 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import {
+  Modal,
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+  ScrollView,
+  Platform,
+  KeyboardAvoidingView,
+} from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { colors, borderRadius, spacing } from '../styles/theme';
+import { EXPENSE_CATEGORIES } from '../constants/categories';
 
 export default function EditExpenseModal({ visible, expense, onClose, theme = 'dark' }) {
   const currentColors = colors[theme] || colors.dark;
 
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (expense) {
       setTitle(expense.title || '');
       setAmount(expense.amount ? String(expense.amount) : '');
-      setCategory(expense.category || '');
+      setCategory(expense.category || EXPENSE_CATEGORIES[0]);
     }
   }, [expense]);
 
@@ -26,13 +38,19 @@ export default function EditExpenseModal({ visible, expense, onClose, theme = 'd
       return;
     }
 
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert('Validation Error', 'Please enter a valid positive amount.');
+      return;
+    }
+
     setSaving(true);
     try {
       const expenseRef = doc(db, 'expenses', expense.id);
       await updateDoc(expenseRef, {
         title: title.trim(),
-        amount: parseFloat(amount),
-        category: category.trim() || 'Other',
+        amount: parsedAmount,
+        category,
       });
       onClose();
     } catch (error) {
@@ -45,8 +63,11 @@ export default function EditExpenseModal({ visible, expense, onClose, theme = 'd
   if (!expense) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="slide">
-      <View style={styles.overlay}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={[styles.container, { backgroundColor: currentColors.cardBackground }]}>
           <Text style={[styles.heading, { color: currentColors.textPrimary }]}>Edit Expense</Text>
 
@@ -62,30 +83,50 @@ export default function EditExpenseModal({ visible, expense, onClose, theme = 'd
             style={[styles.input, { color: currentColors.textPrimary, borderColor: currentColors.border }]}
             placeholder="Amount (₹)"
             placeholderTextColor={currentColors.textSecondary}
-            keyboardType="numeric"
+            keyboardType="decimal-pad"
             value={amount}
             onChangeText={setAmount}
           />
 
-          <TextInput
-            style={[styles.input, { color: currentColors.textPrimary, borderColor: currentColors.border }]}
-            placeholder="Category"
-            placeholderTextColor={currentColors.textSecondary}
-            value={category}
-            onChangeText={setCategory}
-          />
+          <Text style={[styles.label, { color: currentColors.textSecondary }]}>Category</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryContainer}>
+            {EXPENSE_CATEGORIES.map((cat) => {
+              const isSelected = category === cat;
+              return (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: isSelected ? currentColors.accent : 'transparent',
+                      borderColor: isSelected ? currentColors.accent : currentColors.border,
+                    },
+                  ]}
+                  onPress={() => setCategory(cat)}
+                >
+                  <Text style={[styles.chipText, { color: isSelected ? '#FFF' : currentColors.textPrimary }]}>
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
 
           <View style={styles.actions}>
             <TouchableOpacity style={styles.cancelBtn} onPress={onClose}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+            <TouchableOpacity
+              style={[styles.saveBtn, { backgroundColor: currentColors.accent }]}
+              onPress={handleSave}
+              disabled={saving}
+            >
               <Text style={styles.saveText}>{saving ? 'Saving...' : 'Save Changes'}</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -113,6 +154,27 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     fontSize: 15,
   },
+  label: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
+  },
+  categoryContainer: {
+    flexDirection: 'row',
+    marginBottom: spacing.sm,
+  },
+  chip: {
+    borderWidth: 1,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    marginRight: spacing.xs,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
   actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -126,7 +188,6 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
   saveBtn: {
-    backgroundColor: '#3B82F6',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.sm,

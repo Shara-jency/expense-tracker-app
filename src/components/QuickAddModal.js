@@ -10,11 +10,13 @@ import {
   ScrollView,
   Image,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import { colors, borderRadius, spacing } from '../styles/theme';
+import { EXPENSE_CATEGORIES } from '../constants/categories';
 
 // Safe conditional import so missing package does not throw a fatal crash
 let DateTimePicker;
@@ -24,14 +26,12 @@ try {
   DateTimePicker = null;
 }
 
-const CATEGORIES = ['Food & Dining', 'Transport', 'Shopping', 'Bills', 'Entertainment', 'Other'];
-
 export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
   const currentColors = colors[theme] || colors.dark;
 
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState('Food & Dining');
+  const [category, setCategory] = useState(EXPENSE_CATEGORIES[0]);
   const [expenseDate, setExpenseDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [receiptUri, setReceiptUri] = useState(null);
@@ -40,7 +40,7 @@ export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
   const resetForm = () => {
     setTitle('');
     setAmount('');
-    setCategory('Food & Dining');
+    setCategory(EXPENSE_CATEGORIES[0]);
     setExpenseDate(new Date());
     setReceiptUri(null);
   };
@@ -58,7 +58,7 @@ export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       quality: 0.7,
     });
@@ -127,7 +127,10 @@ export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
         <View style={[styles.container, { backgroundColor: currentColors.cardBackground }]}>
           <Text style={[styles.title, { color: currentColors.textPrimary }]}>⚡ Quick Expense Entry</Text>
 
@@ -153,7 +156,7 @@ export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
           {/* Category Chips */}
           <Text style={[styles.label, { color: currentColors.textSecondary }]}>Category</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryContainer}>
-            {CATEGORIES.map((cat) => {
+            {EXPENSE_CATEGORIES.map((cat) => {
               const isSelected = category === cat;
               return (
                 <TouchableOpacity
@@ -161,8 +164,8 @@ export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: isSelected ? '#3B82F6' : 'transparent',
-                      borderColor: isSelected ? '#3B82F6' : currentColors.border,
+                      backgroundColor: isSelected ? currentColors.accent : 'transparent',
+                      borderColor: isSelected ? currentColors.accent : currentColors.border,
                     },
                   ]}
                   onPress={() => setCategory(cat)}
@@ -224,12 +227,16 @@ export default function QuickAddModal({ visible, onClose, theme = 'dark' }) {
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.submitButton} onPress={handleAddExpense} disabled={loading}>
+            <TouchableOpacity
+              style={[styles.submitButton, { backgroundColor: currentColors.accent }]}
+              onPress={handleAddExpense}
+              disabled={loading}
+            >
               <Text style={styles.submitText}>{loading ? 'Saving...' : 'Add Expense'}</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -280,7 +287,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    justify: 'space-between',
+    justifyContent: 'space-between',
     gap: spacing.sm,
     marginBottom: spacing.md,
   },
@@ -308,7 +315,7 @@ const styles = StyleSheet.create({
   },
   buttonRow: {
     flexDirection: 'row',
-    justify: 'flex-end',
+    justifyContent: 'flex-end',
     gap: 12,
     marginTop: spacing.xs,
   },
@@ -319,7 +326,6 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
   },
   submitButton: {
-    backgroundColor: '#3B82F6',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.sm,
