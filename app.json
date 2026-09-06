@@ -4,7 +4,9 @@
     "slug": "spendlens-expense-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
+
     "icon": "./assets/icon.png",
+
     "userInterfaceStyle": "automatic",
 
     "ios": {
@@ -14,6 +16,11 @@
 
     "android": {
       "package": "com.spendlens.expensetracker",
+
+      "permissions": [
+        "POST_NOTIFICATIONS"
+      ],
+
       "adaptiveIcon": {
         "backgroundColor": "#121218",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -28,6 +35,7 @@
 
     "plugins": [
       "expo-sharing",
+
       "@react-native-community/datetimepicker",
 
       [
@@ -55,6 +63,8 @@
       "eas": {
         "projectId": "dada7288-10c5-43bb-ac22-f806185633e1"
       }
-    }
+    },
+
+    "owner": "shara_jency"
   }
 }
