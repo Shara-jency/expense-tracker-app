@@ -24,6 +24,7 @@ import {
 
 // Components
 import AppLoader from './src/components/AppLoader';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 // Screens
 import AuthScreen from './src/screens/AuthScreen';
@@ -243,13 +244,25 @@ function MainApp() {
 
 /**
  * Root application
- */
+//  */
+// export default function App() {
+//   return (
+//     <SafeAreaProvider>
+//       <ThemeProvider>
+//         <MainApp />
+//       </ThemeProvider>
+//     </SafeAreaProvider>
+//   );
+// }
+
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <MainApp />
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <MainApp />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
